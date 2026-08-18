@@ -1,0 +1,3 @@
+-- Baseline migration. No entities exist yet in this blueprint;
+-- add the schema for each entity here as a new versioned migration
+-- (V2__..., V3__...) instead of relying on hibernate.ddl-auto in production.
