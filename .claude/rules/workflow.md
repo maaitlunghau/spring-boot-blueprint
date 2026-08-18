@@ -16,7 +16,7 @@ Write the failing test first, watch it fail for the *expected* reason, then writ
 
 ## Git
 
-Commits are small, one concern each, and validated by a Husky `commit-msg` hook: `type(scope): subject`, all lowercase, single line, ≤60 chars, no body, no trailers. Types: `feat fix docs style refactor perf test chore revert ci`. See `git log --oneline` for the established pattern — feature work first, then separate `fix:` commits each paired with the regression test that caught the bug.
+Commits are small, one concern each, and validated by a Husky `commit-msg` hook: `type(scope): subject`, all lowercase, single line, ≤70 chars, no body, no trailers. Types: `feat fix docs style refactor perf test chore revert ci`. See `git log --oneline` for the established pattern — feature work first, then separate `fix:` commits each paired with the regression test that caught the bug.
 
 ## When something breaks
 
