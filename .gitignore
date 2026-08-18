@@ -31,3 +31,7 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### direnv / env ###
+.env
+.direnv/
