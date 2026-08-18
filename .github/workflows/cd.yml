@@ -1,0 +1,30 @@
+name: CD
+
+# Deliberate no-op placeholder: builds the docker image to prove it still
+# builds on main, but does not push or deploy anywhere. No deployment target
+# (registry/server/cloud) exists yet for this project — don't wire one in
+# here without discussing where it should actually go first.
+
+on:
+  workflow_run:
+    workflows: [CI]
+    branches: [main]
+    types: [completed]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    if: github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Build docker image
+        run: docker build -t spring-boot-blueprint:${{ github.event.workflow_run.head_sha }} .
+
+      # No deployment target yet. When one exists, add push/deploy steps here
+      # (e.g. push to a registry, then deploy) instead of silently picking one.
