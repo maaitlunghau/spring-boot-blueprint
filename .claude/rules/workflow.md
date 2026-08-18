@@ -1,30 +1,32 @@
-# Workflow — spring-boot-mini-project
+# Workflow — spring-boot-blueprint
 
 ## Commands
 
 ```bash
-./mvnw spring-boot:run                          # run the app (needs docker compose up -d first)
-./mvnw test                                     # full suite
-./mvnw test -Dtest=RefreshTokenServiceImplTest   # one class
-./mvnw test -Dtest=ClassName#methodName          # one method
-./mvnw clean package -DskipTests                 # build the jar
+docker compose up -d                    # mysql + redis (add --profile dev for phpmyadmin too)
+./mvnw spring-boot:run                  # run the app (needs the containers above + .env loaded)
+./mvnw test                             # full suite
+./mvnw clean package -DskipTests        # build the jar (target/app.jar)
+docker build -t spring-boot-blueprint . # build the Dockerfile image
 ```
 
-## TDD
+`.env` isn't auto-loaded in a non-interactive shell — use `set -a; source .env; set +a` before running Maven commands outside an interactive `direnv`-hooked shell.
 
-Write the failing test first, watch it fail for the *expected* reason, then write the minimal fix, watch it pass. Not aspirational here — every fixed bug in `docs/known-issues.md` was fixed exactly this way, against the real docker-compose MySQL/Redis, not mocks (mocks would have missed the transaction-propagation bugs entirely). Use the `superpowers:test-driven-development` skill for the full cycle discipline.
+## Git commits
 
-## Git
+Validated by the Husky `commit-msg` hook (`.husky/commit-msg`): `type(scope): subject`, single line, ≤70 chars, no body, no trailers. Types: `feat fix docs style refactor perf test chore revert ci`. Scope is optional — commits so far use none (`git log --oneline` shows plain `type: subject`), match that unless a real reason to add one comes up.
 
-Commits are small, one concern each, and validated by a Husky `commit-msg` hook: `type(scope): subject`, all lowercase, single line, ≤70 chars, no body, no trailers. Types: `feat fix docs style refactor perf test chore revert ci`. See `git log --oneline` for the established pattern — feature work first, then separate `fix:` commits each paired with the regression test that caught the bug.
+Rules on top of what the hook enforces (from explicit user instruction — always follow these):
+
+- **Never** add a `Co-Authored-By:` trailer or any "Generated with Claude" line — the hook would reject it anyway (more than one non-blank line), but don't even try.
+- **Don't bundle unrelated files into one commit.** Group changes by concern/feature; split anything unrelated into its own commit even if it means several small commits for one task.
+- Run `git status` / `git diff` / `git log --oneline -10` before committing, every time — see the `writing-commit-messages` skill for the full checklist.
 
 ## When something breaks
 
 1. Read the stack trace from the bottom up — the root cause is usually at the end, not the top.
-2. Common errors in this codebase's shape:
+2. Common Spring Boot errors:
    - `NoSuchBeanDefinitionException` → missing `@Service`/`@Repository`/`@Component`, or it's outside the component-scan base package.
    - `BeanCreationException` → look at the *inner* exception, the real error is nested.
-   - `LazyInitializationException` → accessing a lazy relation outside the transaction that loaded it.
-   - `DataIntegrityViolationException` → a DB constraint violation (unique/not-null/FK) — often a check-then-act race that skipped the DB's own constraint check; see bug #6 in `docs/known-issues.md` for a live example.
-   - `Connection is read-only` (MySQL) → the exact bug already fixed once in this repo (see `docs/known-issues.md`) — a `@Transactional(readOnly = true)` leaking onto a write path. If it recurs, it's the same root cause.
-3. For anything non-obvious, the `superpowers:systematic-debugging` skill has the full root-cause process.
+   - `Unable to determine Dialect without JDBC metadata` → datasource URL/credentials aren't resolving — check the active Spring profile and that `.env` is actually loaded in the current shell.
+3. For anything non-obvious, use the `superpowers:systematic-debugging` skill.

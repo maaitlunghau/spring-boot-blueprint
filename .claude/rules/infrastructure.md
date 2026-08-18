@@ -1,21 +1,25 @@
-# Infrastructure — spring-boot-mini-project
-
-Full setup/run instructions live in `README.md` — this file is the *why*, not a duplicate *how*.
+# Infrastructure — spring-boot-blueprint
 
 ## Local dev stack
 
-`docker-compose.yml` at the repo root runs infra only (`mysql:8.4`, `redis:7-alpine`, `phpmyadmin`) — the app itself is **not** containerized in this compose file, it runs via `./mvnw spring-boot:run` against those containers over `localhost`, so hot-reload/debugging still works. The standalone `Dockerfile` (multi-stage, non-root) exists for CI's build-check and for a future real deployment — it's intentionally not wired into compose.
+`docker-compose.yml` at the repo root runs infra only: `mysql:8.4`, `redis:7-alpine`, and `phpmyadmin` (gated behind the `dev` compose profile — `docker compose --profile dev up -d` to include it; plain `docker compose up -d` only starts `mysql`+`redis`). The app itself is **not** wired into this compose file — run it via `./mvnw spring-boot:run` against those containers over `localhost`.
+
+`mysql`/`redis` ports are bound to `127.0.0.1` only, not `0.0.0.0` — don't remove that binding without a reason, it's what keeps the DB/cache off the network in anything other than local dev.
+
+The standalone `Dockerfile` (multi-stage: `maven:3.9-eclipse-temurin-21` builder → `eclipse-temurin:21-jre-alpine` runtime, non-root `spring` user) is separate from compose. `pom.xml` sets `<finalName>app</finalName>` specifically so `target/app.jar` matches what the `Dockerfile`'s `COPY` expects — keep those two in sync if either changes. `.dockerignore` excludes `.env`, `.git`, `node_modules`, `target` from the build context.
 
 Ports: app `8081`, phpMyAdmin `8080`, MySQL `3306`, Redis `6379`.
 
 ## Secrets
 
-Never hardcode credentials in `application.yml` — that was the very first thing fixed in this repo's history. Real values live in `.env` (gitignored); `.env.example` is the committed template. `direnv` (`.envrc`) auto-loads `.env` on `cd` if installed; `run-dev.sh` is the fallback for anyone without it. A Maven-side auto-load via `properties-maven-plugin` was tried and reverted — check git history / `docs/superpowers/plans/` for why before retrying that path.
+Never hardcode credentials in `application.yml` / `application-*.yml` — use `${VAR}` placeholders. Real values live in `.env` (gitignored); `.env.example` is the committed template with the current full var list (`MYSQL_HOST`, `MYSQL_ROOT_PASSWORD`, `DB_USERNAME`, `DB_PASSWORD`, `REDIS_HOST`, `REDIS_PASSWORD`, `JWT_SECRET`, `SPRING_PROFILES_ACTIVE`). `direnv` (`.envrc`, containing just `dotenv`) auto-loads `.env` on `cd` if installed and hooked into the shell — note it only fires in an interactive shell session, not in a plain non-interactive subshell (e.g. `bash -c '...'`), which needs `set -a; source .env; set +a` instead.
+
+MySQL now runs with a non-root app user (`MYSQL_USER`/`MYSQL_PASSWORD` in compose, sourced from `DB_USERNAME`/`DB_PASSWORD`) separate from `MYSQL_ROOT_PASSWORD` — the app should never connect as root. Redis requires a password (`--requirepass` from `REDIS_PASSWORD`) — connecting without one fails with `NOAUTH`.
 
 ## Schema strategy
 
-`ddl-auto: update` for now — tracked as a known gap, not an oversight (see `docs/known-issues.md` and `README.md`'s roadmap). When Flyway/Liquibase gets added, migration files go in `src/main/resources/db/migration/` and `ddl-auto` changes to `validate`.
+Flyway (`flyway-core` + `flyway-mysql`) is wired in. `application-dev.yml` uses `ddl-auto: update` with Flyway disabled for fast local iteration; `application-prod.yml` uses `ddl-auto: validate` with Flyway enabled. `src/main/resources/db/migration/V1__init.sql` is currently an empty baseline — add real migrations there (`V2__...`, `V3__...`) as entities get added, don't rely on `ddl-auto` to shape the prod schema.
 
 ## CI/CD
 
-`.github/workflows/ci.yml` builds and runs the full test suite against real MySQL/Redis service containers (not mocks), plus a `docker build` check. `cd.yml` is a deliberate no-op placeholder — no deployment target exists yet, don't fill it in without discussing where it should actually deploy to.
+No `.github/workflows` exist yet — builds/tests only run locally so far. (`.github/modernize/java-upgrade/` is unrelated scaffolding from GitHub's Copilot Java-upgrade assistant feature, not a CI pipeline.)

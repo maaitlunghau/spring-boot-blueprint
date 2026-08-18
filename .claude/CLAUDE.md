@@ -1,10 +1,10 @@
-# spring-boot-mini-project
+# spring-boot-blueprint
 
-Spring Boot 4.1.0 / Java 21 practice project — production-grade patterns, not a toy. Full context: `README.md` (setup/run), `docs/known-issues.md` (known bugs, what's fixed vs open), `.claude/rules/` (architecture/coding/infra conventions, loaded on demand).
+Spring Boot 4.1.0 / Java 21 starter blueprint. No domain/business code yet — the only application code is `SpringBootBlueprintApplication` and its default context-load test. What exists so far is scaffolding: dependencies, Docker/compose, env/profile config, Flyway, git hooks. Details live in `.claude/rules/` (loaded on demand); keep those files matching reality as real features land instead of leaving them stale.
 
 ## Hard rules
 
-- Never commit `.env`, print its contents, or reuse the JWT secret documented as leaked in this repo's git history.
-- Commits must pass the Husky `commit-msg` hook: `type(scope): subject`, lowercase, single line, ≤70 chars, no body — see `.claude/rules/workflow.md`.
-- Swagger being public and CD being a no-op are deliberate decisions — don't "fix" either without asking first.
-- Bug #5 (last-admin race) has a documented failed fix attempt — read the `project_last-admin-race-deferred` memory and the disabled test's Javadoc before retrying it.
+- Never commit `.env` or print its contents — real secrets live there; `.env.example` is the committed template.
+- Commits must pass the Husky `commit-msg` hook: `type(scope): subject`, single line, ≤70 chars, no body — see `.claude/rules/workflow.md`.
+- Never add a `Co-Authored-By:` trailer (or any "Generated with Claude" line) to a commit.
+- Don't bundle unrelated files into one commit — group by concern, split the rest.
