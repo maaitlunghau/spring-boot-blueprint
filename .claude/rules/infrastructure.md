@@ -22,4 +22,8 @@ Flyway (`flyway-core` + `flyway-mysql`) is wired in. `application-dev.yml` uses 
 
 ## CI/CD
 
-No `.github/workflows` exist yet — builds/tests only run locally so far. (`.github/modernize/java-upgrade/` is unrelated scaffolding from GitHub's Copilot Java-upgrade assistant feature, not a CI pipeline.)
+`.github/workflows/ci.yml` runs on push/PR to `main`: a `test` job spins up `mysql:8.4` + `redis:7-alpine` as service containers (dummy CI-only credentials, redis has no password — GitHub Actions service containers can't override the image's command to add `--requirepass`) and runs `./mvnw test`; a `docker-build` job (depends on `test`) builds the `Dockerfile` image to catch build breakage, without pushing it anywhere.
+
+`.github/workflows/cd.yml` is a deliberate no-op placeholder: it triggers after `CI` succeeds on `main` and just rebuilds the docker image to prove it still builds — no registry push, no deploy step. No deployment target (registry/server/cloud) exists yet; don't wire one in without discussing where it should actually go first.
+
+(`.github/modernize/java-upgrade/` is unrelated scaffolding from GitHub's Copilot Java-upgrade assistant feature, not a CI pipeline.)
