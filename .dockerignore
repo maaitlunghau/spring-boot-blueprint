@@ -1,0 +1,12 @@
+.git
+.github
+.husky
+.vscode
+.idea
+node_modules
+target
+.env
+.env.example
+.envrc
+.direnv
+*.md
