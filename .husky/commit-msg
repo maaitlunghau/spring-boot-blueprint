@@ -1,0 +1,30 @@
+#!/usr/bin/env sh
+msg_file="$1"
+
+# strip comment lines (git may append these) and blank lines
+content=$(grep -v '^#' "$msg_file" | sed '/^[[:space:]]*$/d')
+line_count=$(printf '%s\n' "$content" | grep -c .)
+subject=$(printf '%s\n' "$content" | head -n1)
+
+fail() {
+  echo ""
+  echo "husky: commit message rejected — $1"
+  echo ""
+  echo "  format:   type(scope): subject"
+  echo "  rules:    single line, <=70 chars, no body"
+  echo "  types:    feat fix docs style refactor perf test chore revert ci"
+  echo "  example:  fix(auth): correct token expiry check"
+  echo ""
+  echo "  your message: $subject"
+  echo ""
+  exit 1
+}
+
+[ "$line_count" -eq 1 ] || fail "no body/footer allowed, subject line only"
+
+pattern='^(feat|fix|docs|style|refactor|perf|test|chore|revert|ci)(\([a-z0-9-]+\))?: .+$'
+printf '%s' "$subject" | grep -qE "$pattern" || fail "must match type(scope): subject"
+
+[ "${#subject}" -le 70 ] || fail "exceeds 70 characters (${#subject})"
+
+exit 0
