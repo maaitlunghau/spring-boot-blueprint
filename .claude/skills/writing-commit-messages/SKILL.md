@@ -7,7 +7,7 @@ description: Use when creating a git commit in this project - covers checking re
 
 ## Overview
 
-Commits in this project are validated by a Husky `commit-msg` hook (`.husky/commit-msg`, bash — no commitlint package installed, the hook itself is the enforcement). Messages must be short, single-line, all lowercase, and follow the type(scope) format. Never add co-author trailers — the hook rejects any commit with more than one non-blank line, so a trailer makes the commit fail outright.
+Commits in this project are validated by a Husky `commit-msg` hook (`.husky/commit-msg`, bash — no commitlint package installed, the hook itself is the enforcement). Messages must be short, single-line, and follow the type(scope) format. `type` and `scope` must be lowercase (the hook matches them literally/via a lowercase regex); the free-text `subject` after the colon is not case-restricted. Never add co-author trailers — the hook rejects any commit with more than one non-blank line, so a trailer makes the commit fail outright.
 
 ## Before Committing — Always
 
@@ -35,7 +35,7 @@ type(scope): subject
 
 - `type` must be one of: `feat fix docs style refactor perf test chore revert ci`
 - `scope`, if present, lowercase alphanumeric/hyphen only
-- entire subject line must be lowercase — no uppercase letters anywhere, not even mid-word
+- `subject` may contain uppercase — no lowercase-only restriction on it
 - whole header (the single line) must be **≤ 70 characters**
 - no body, no footer, no blank-line-separated paragraphs — one line, period
 - no trailing period on the subject
@@ -60,9 +60,10 @@ These are hard limits — the commit is rejected, not just linted.
 
 - **Never** add a `Co-Authored-By:` line or any "Generated with Claude" trailer.
 - Never write a multi-line commit body — keep it to one line.
-- Never use uppercase anywhere in the message — `type`, `scope`, and `subject` are all lowercase, start to end.
+- Never use uppercase in `type` or `scope` — `subject` itself may use uppercase where it reads naturally (e.g. an acronym or proper noun).
 - Never end the subject with a period.
 - Never exceed 70 characters total.
+- Never cram unrelated files into one commit — group by concern, split the rest into separate commits.
 
 ## If Unclear
 
