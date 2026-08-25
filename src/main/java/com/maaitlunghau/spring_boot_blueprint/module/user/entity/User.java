@@ -53,9 +53,8 @@ public class User extends BaseEntity {
         this.imageUrl = imageUrl;
     }
 
-    public void updateProfile(String fullName, String email, String imageUrl) {
+    public void updateProfile(String fullName, String imageUrl) {
         this.fullName = fullName;
-        this.email = normalizeEmail(email);
         this.imageUrl = imageUrl;
     }
 
