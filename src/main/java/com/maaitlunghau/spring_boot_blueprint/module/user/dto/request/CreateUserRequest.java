@@ -17,5 +17,7 @@ public record CreateUserRequest(
     String password,
 
     @NotBlank(message = "Role is required")
-    String role
+    String role,
+
+    String imageUrl
 ) {}
