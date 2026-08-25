@@ -35,3 +35,6 @@ build/
 ### direnv / env ###
 .env
 .direnv/
+
+### Claude (.claude) ###
+.claude
