@@ -62,6 +62,10 @@ public class User extends BaseEntity {
         this.role = role;
     }
 
+    public void changePassword(String passwordHash) {
+        this.passwordHash = passwordHash;
+    }
+
     private static String normalizeEmail(String email) {
         return email == null ? null : email.trim().toLowerCase();
     }
