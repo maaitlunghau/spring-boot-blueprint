@@ -12,6 +12,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Table;
+import lombok.Builder;
 import lombok.Getter;
 
 @Entity
@@ -42,6 +43,7 @@ public class User extends BaseEntity {
     protected User() {
     }
 
+    @Builder
     public User(String fullName, String email, String passwordHash, Role role, boolean enabled, String imageUrl) {
         this.fullName = fullName;
         this.email = normalizeEmail(email);
