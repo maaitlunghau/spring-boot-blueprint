@@ -37,4 +37,4 @@ build/
 .direnv/
 
 ### Claude (.claude) ###
-.claude
+.claude/
