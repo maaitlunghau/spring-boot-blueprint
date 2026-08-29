@@ -12,5 +12,7 @@ public record UserResponse(
         Role role,
         boolean enabled,
         String imageUrl,
+        String bannedReason,
+        Instant bannedUntil,
         Instant createdAt) {
 }

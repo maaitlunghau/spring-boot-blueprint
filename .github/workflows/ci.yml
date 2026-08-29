@@ -39,6 +39,19 @@ jobs:
           --health-timeout=5s
           --health-retries=10
 
+      rabbitmq:
+        image: rabbitmq:3-management-alpine
+        env:
+          RABBITMQ_DEFAULT_USER: ci_rabbitmq
+          RABBITMQ_DEFAULT_PASS: ci_rabbitmq_password
+        ports:
+          - 5672:5672
+        options: >-
+          --health-cmd="rabbitmq-diagnostics -q ping"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+
     env:
       SPRING_PROFILES_ACTIVE: dev
       MYSQL_HOST: localhost
@@ -54,6 +67,16 @@ jobs:
       CLOUDINARY_CLOUD_NAME: ci-dummy-cloud-name
       CLOUDINARY_API_KEY: ci-dummy-api-key
       CLOUDINARY_API_SECRET: ci-dummy-api-secret
+      RABBITMQ_HOST: localhost
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USERNAME: ci_rabbitmq
+      RABBITMQ_PASSWORD: ci_rabbitmq_password
+      # Dummy values — CI only loads the Spring context (contextLoads test), never
+      # sends a real email, so these just need to be non-empty.
+      MAIL_HOST: localhost
+      MAIL_PORT: 25
+      MAIL_USERNAME: ci-dummy@example.com
+      MAIL_PASSWORD: ci-dummy-password
 
     steps:
       - uses: actions/checkout@v4

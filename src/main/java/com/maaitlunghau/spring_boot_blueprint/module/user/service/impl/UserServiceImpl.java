@@ -13,18 +13,25 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.maaitlunghau.spring_boot_blueprint.common.dto.PageResponse;
+import com.maaitlunghau.spring_boot_blueprint.common.messaging.outbox.OutboxEventWriter;
 import com.maaitlunghau.spring_boot_blueprint.common.storage.ImageTransform;
+import com.maaitlunghau.spring_boot_blueprint.config.RabbitMQConfig;
 import com.maaitlunghau.spring_boot_blueprint.common.storage.StorageResult;
 import com.maaitlunghau.spring_boot_blueprint.common.storage.StorageService;
 import com.maaitlunghau.spring_boot_blueprint.exception.BadRequestException;
 import com.maaitlunghau.spring_boot_blueprint.exception.DuplicateResourceException;
 import com.maaitlunghau.spring_boot_blueprint.exception.ResourceNotFoundException;
+import com.maaitlunghau.spring_boot_blueprint.exception.UserAlreadyBannedException;
+import com.maaitlunghau.spring_boot_blueprint.exception.UserNotBannedException;
+import com.maaitlunghau.spring_boot_blueprint.module.user.dto.request.BanUserRequest;
 import com.maaitlunghau.spring_boot_blueprint.module.user.dto.request.CreateUserRequest;
 import com.maaitlunghau.spring_boot_blueprint.module.user.dto.request.UpdateProfileRequest;
 import com.maaitlunghau.spring_boot_blueprint.module.user.dto.request.UpdateRoleRequest;
 import com.maaitlunghau.spring_boot_blueprint.module.user.dto.response.UserResponse;
 import com.maaitlunghau.spring_boot_blueprint.module.user.entity.Role;
 import com.maaitlunghau.spring_boot_blueprint.module.user.entity.User;
+import com.maaitlunghau.spring_boot_blueprint.module.user.event.UserBannedEvent;
+import com.maaitlunghau.spring_boot_blueprint.module.user.event.UserUnbannedEvent;
 import com.maaitlunghau.spring_boot_blueprint.module.user.mapper.UserMapper;
 import com.maaitlunghau.spring_boot_blueprint.module.user.repository.UserRepository;
 import com.maaitlunghau.spring_boot_blueprint.module.user.repository.spec.UserSpecifications;
@@ -42,10 +49,13 @@ public class UserServiceImpl implements UserService {
     private static final long MAX_AVATAR_SIZE = 5 * 1024 * 1024;
     private static final ImageTransform AVATAR_TRANSFORM = new ImageTransform(512, 512, true);
 
+    private static final String USER_AGGREGATE_TYPE = "User";
+
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final UserMapper userMapper;
     private final StorageService storageService;
+    private final OutboxEventWriter outboxEventWriter;
 
     @Value("${app.avatar.default-url}")
     private String defaultAvatarUrl;
@@ -54,12 +64,14 @@ public class UserServiceImpl implements UserService {
         UserRepository userRepository,
         PasswordEncoder passwordEncoder,
         UserMapper userMapper,
-        StorageService storageService
+        StorageService storageService,
+        OutboxEventWriter outboxEventWriter
     ) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.userMapper = userMapper;
         this.storageService = storageService;
+        this.outboxEventWriter = outboxEventWriter;
     }
 
     @Override
@@ -112,6 +124,57 @@ public class UserServiceImpl implements UserService {
         user.changeRole(Role.valueOf(request.role()));
 
         return userMapper.toResponse(userRepository.save(user));
+    }
+
+    @Override
+    @Transactional
+    public UserResponse banUser(UUID id, BanUserRequest request) {
+        User user = userRepository.findById(id)
+            .orElseThrow(() -> new ResourceNotFoundException("User", id.toString()));
+
+        if (user.getRole() == Role.ADMIN) {
+            throw new BadRequestException("Cannot ban a user with ADMIN role");
+        }
+        // Self-ban is not checked here: there is no authenticated-caller identity
+        // available yet. See docs/AUTH_MODULE_TODO.md.
+        if (!user.isEnabled()) {
+            throw new UserAlreadyBannedException(id.toString());
+        }
+
+        user.ban(request.reason(), request.bannedUntil());
+        UserResponse response = userMapper.toResponse(userRepository.save(user));
+
+        outboxEventWriter.write(
+            USER_AGGREGATE_TYPE,
+            id,
+            RabbitMQConfig.USER_BANNED_ROUTING_KEY,
+            new UserBannedEvent(id, user.getEmail(), user.getFullName(), request.reason(), request.bannedUntil())
+        );
+
+        return response;
+    }
+
+    @Override
+    @Transactional
+    public UserResponse unbanUser(UUID id) {
+        User user = userRepository.findById(id)
+            .orElseThrow(() -> new ResourceNotFoundException("User", id.toString()));
+
+        if (user.isEnabled()) {
+            throw new UserNotBannedException(id.toString());
+        }
+
+        user.unban();
+        UserResponse response = userMapper.toResponse(userRepository.save(user));
+
+        outboxEventWriter.write(
+            USER_AGGREGATE_TYPE,
+            id,
+            RabbitMQConfig.USER_UNBANNED_ROUTING_KEY,
+            new UserUnbannedEvent(id, user.getEmail(), user.getFullName())
+        );
+
+        return response;
     }
 
     @Override

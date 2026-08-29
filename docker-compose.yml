@@ -32,6 +32,21 @@ services:
     networks:
       - backend
 
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: spring-boot-blueprint-rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USERNAME}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
+    ports:
+      - "127.0.0.1:5672:5672"
+      - "127.0.0.1:15672:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - backend
+
   phpmyadmin:
     image: phpmyadmin:latest
     container_name: spring-boot-blueprint-phpmyadmin
@@ -57,3 +72,4 @@ networks:
 volumes:
   mysql_data:
   redis_data:
+  rabbitmq_data:
