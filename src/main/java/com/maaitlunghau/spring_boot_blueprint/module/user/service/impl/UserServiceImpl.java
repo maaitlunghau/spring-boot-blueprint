@@ -75,7 +75,7 @@ public class UserServiceImpl implements UserService {
         User user = userRepository.findById(id)
             .orElseThrow(() -> new ResourceNotFoundException("User", id.toString()));
 
-        user.updateProfile(request.fullName(), request.imageUrl());
+        user.updateProfile(request.fullName());
 
         return userMapper.toResponse(userRepository.save(user));
     }

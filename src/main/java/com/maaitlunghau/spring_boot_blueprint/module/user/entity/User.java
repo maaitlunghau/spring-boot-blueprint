@@ -40,22 +40,38 @@ public class User extends BaseEntity {
     @Column(name = "image_url", length = 1000, nullable = true)
     private String imageUrl;
 
+    @Column(name = "image_public_id", nullable = true)
+    private String imagePublicId;
+
     protected User() {
     }
 
     @Builder
-    public User(String fullName, String email, String passwordHash, Role role, boolean enabled, String imageUrl) {
+    public User(
+        String fullName,
+        String email,
+        String passwordHash,
+        Role role,
+        boolean enabled,
+        String imageUrl,
+        String imagePublicId
+    ) {
         this.fullName = fullName;
         this.email = normalizeEmail(email);
         this.passwordHash = passwordHash;
         this.role = role;
         this.enabled = enabled;
         this.imageUrl = imageUrl;
+        this.imagePublicId = imagePublicId;
     }
 
-    public void updateProfile(String fullName, String imageUrl) {
+    public void updateProfile(String fullName) {
         this.fullName = fullName;
+    }
+
+    public void updateAvatar(String imageUrl, String imagePublicId) {
         this.imageUrl = imageUrl;
+        this.imagePublicId = imagePublicId;
     }
 
     public void changeRole(Role role) {
