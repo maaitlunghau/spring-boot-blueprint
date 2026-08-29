@@ -1,6 +1,5 @@
 package com.maaitlunghau.spring_boot_blueprint.common.storage.cloudinary;
 
-import java.io.IOException;
 import java.util.Map;
 
 import org.springframework.stereotype.Service;
@@ -33,7 +32,7 @@ public class CloudinaryStorageService implements StorageService {
                 (String) result.get("secure_url"),
                 (String) result.get("public_id")
             );
-        } catch (IOException e) {
+        } catch (Exception e) {
             throw new FileUploadException("Failed to upload file to Cloudinary");
         }
     }
@@ -42,7 +41,7 @@ public class CloudinaryStorageService implements StorageService {
     public void delete(String publicId) {
         try {
             cloudinary.uploader().destroy(publicId, ObjectUtils.emptyMap());
-        } catch (IOException e) {
+        } catch (Exception e) {
             throw new FileUploadException("Failed to delete file from Cloudinary");
         }
     }

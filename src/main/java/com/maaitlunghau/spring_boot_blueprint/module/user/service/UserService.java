@@ -3,6 +3,7 @@ package com.maaitlunghau.spring_boot_blueprint.module.user.service;
 import java.util.UUID;
 
 import org.springframework.data.domain.Pageable;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.maaitlunghau.spring_boot_blueprint.common.dto.PageResponse;
 import com.maaitlunghau.spring_boot_blueprint.module.user.dto.request.CreateUserRequest;
@@ -22,6 +23,8 @@ public interface UserService {
     UserResponse updateProfile(UUID id, UpdateProfileRequest request);
 
     UserResponse updateRole(UUID id, UpdateRoleRequest request);
+
+    UserResponse updateAvatar(UUID id, MultipartFile file);
 
     void deleteUser(UUID id);
 }
