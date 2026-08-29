@@ -19,6 +19,9 @@ import com.maaitlunghau.spring_boot_blueprint.common.storage.StorageService;
 import com.maaitlunghau.spring_boot_blueprint.exception.BadRequestException;
 import com.maaitlunghau.spring_boot_blueprint.exception.DuplicateResourceException;
 import com.maaitlunghau.spring_boot_blueprint.exception.ResourceNotFoundException;
+import com.maaitlunghau.spring_boot_blueprint.exception.UserAlreadyBannedException;
+import com.maaitlunghau.spring_boot_blueprint.exception.UserNotBannedException;
+import com.maaitlunghau.spring_boot_blueprint.module.user.dto.request.BanUserRequest;
 import com.maaitlunghau.spring_boot_blueprint.module.user.dto.request.CreateUserRequest;
 import com.maaitlunghau.spring_boot_blueprint.module.user.dto.request.UpdateProfileRequest;
 import com.maaitlunghau.spring_boot_blueprint.module.user.dto.request.UpdateRoleRequest;
@@ -110,6 +113,41 @@ public class UserServiceImpl implements UserService {
             .orElseThrow(() -> new ResourceNotFoundException("User", id.toString()));
 
         user.changeRole(Role.valueOf(request.role()));
+
+        return userMapper.toResponse(userRepository.save(user));
+    }
+
+    @Override
+    @Transactional
+    public UserResponse banUser(UUID id, BanUserRequest request) {
+        User user = userRepository.findById(id)
+            .orElseThrow(() -> new ResourceNotFoundException("User", id.toString()));
+
+        if (user.getRole() == Role.ADMIN) {
+            throw new BadRequestException("Cannot ban a user with ADMIN role");
+        }
+        // Self-ban is not checked here: there is no authenticated-caller identity
+        // available yet. See docs/AUTH_MODULE_TODO.md.
+        if (!user.isEnabled()) {
+            throw new UserAlreadyBannedException(id.toString());
+        }
+
+        user.ban(request.reason(), request.bannedUntil());
+
+        return userMapper.toResponse(userRepository.save(user));
+    }
+
+    @Override
+    @Transactional
+    public UserResponse unbanUser(UUID id) {
+        User user = userRepository.findById(id)
+            .orElseThrow(() -> new ResourceNotFoundException("User", id.toString()));
+
+        if (user.isEnabled()) {
+            throw new UserNotBannedException(id.toString());
+        }
+
+        user.unban();
 
         return userMapper.toResponse(userRepository.save(user));
     }

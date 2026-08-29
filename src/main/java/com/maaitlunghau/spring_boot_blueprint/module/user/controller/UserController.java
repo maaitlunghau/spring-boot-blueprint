@@ -18,6 +18,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.maaitlunghau.spring_boot_blueprint.common.dto.ApiResponse;
 import com.maaitlunghau.spring_boot_blueprint.common.dto.PageResponse;
+import com.maaitlunghau.spring_boot_blueprint.module.user.dto.request.BanUserRequest;
 import com.maaitlunghau.spring_boot_blueprint.module.user.dto.request.CreateUserRequest;
 import com.maaitlunghau.spring_boot_blueprint.module.user.dto.request.UpdateProfileRequest;
 import com.maaitlunghau.spring_boot_blueprint.module.user.dto.request.UpdateRoleRequest;
@@ -91,6 +92,31 @@ public class UserController {
                 HttpStatus.OK.value(), 
                 "Updated role successfully", 
                 userService.updateRole(id, request)
+            )
+        );
+    }
+
+    @PatchMapping("/{id}/ban")
+    public ResponseEntity<ApiResponse<UserResponse>> banUser(
+        @PathVariable UUID id,
+        @Valid @RequestBody BanUserRequest request
+    ) {
+        return ResponseEntity.ok(
+            ApiResponse.of(
+                HttpStatus.OK.value(),
+                "User banned successfully",
+                userService.banUser(id, request)
+            )
+        );
+    }
+
+    @PatchMapping("/{id}/unban")
+    public ResponseEntity<ApiResponse<UserResponse>> unbanUser(@PathVariable UUID id) {
+        return ResponseEntity.ok(
+            ApiResponse.of(
+                HttpStatus.OK.value(),
+                "User unbanned successfully",
+                userService.unbanUser(id)
             )
         );
     }
