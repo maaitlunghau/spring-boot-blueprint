@@ -144,13 +144,20 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    @Transactional
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public void deleteUser(UUID id) {
-        if (!userRepository.existsById(id)) {
-            throw new ResourceNotFoundException("User", id.toString());
-        }
+        User user = userRepository.findById(id)
+            .orElseThrow(() -> new ResourceNotFoundException("User", id.toString()));
 
         userRepository.deleteById(id);
+
+        if (user.getImagePublicId() != null) {
+            try {
+                storageService.delete(user.getImagePublicId());
+            } catch (Exception e) {
+                log.warn("Failed to delete avatar '{}' for deleted user {}", user.getImagePublicId(), id, e);
+            }
+        }
     }
 
     private void validateAvatarFile(MultipartFile file) {
