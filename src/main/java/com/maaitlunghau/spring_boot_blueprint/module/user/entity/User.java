@@ -1,5 +1,6 @@
 package com.maaitlunghau.spring_boot_blueprint.module.user.entity;
 
+import java.time.Instant;
 import java.util.Objects;
 
 import org.hibernate.proxy.HibernateProxy;
@@ -43,6 +44,15 @@ public class User extends BaseEntity {
     @Column(name = "image_public_id", nullable = true)
     private String imagePublicId;
 
+    @Column(name = "banned_reason", nullable = true)
+    private String bannedReason;
+
+    @Column(name = "banned_at", nullable = true)
+    private Instant bannedAt;
+
+    @Column(name = "banned_until", nullable = true)
+    private Instant bannedUntil;
+
     protected User() {
     }
 
@@ -80,6 +90,20 @@ public class User extends BaseEntity {
 
     public void changePassword(String passwordHash) {
         this.passwordHash = passwordHash;
+    }
+
+    public void ban(String reason, Instant until) {
+        this.enabled = false;
+        this.bannedReason = reason;
+        this.bannedAt = Instant.now();
+        this.bannedUntil = until;
+    }
+
+    public void unban() {
+        this.enabled = true;
+        this.bannedReason = null;
+        this.bannedAt = null;
+        this.bannedUntil = null;
     }
 
     private static String normalizeEmail(String email) {
