@@ -30,6 +30,7 @@
 		<java.version>21</java.version>
 		<mapstruct.version>1.6.3</mapstruct.version>
 		<springdoc.version>3.1.0</springdoc.version>
+		<cloudinary.version>2.3.0</cloudinary.version>
 	</properties>
 	<dependencies>
 		<!-- JPA -->
@@ -113,6 +114,13 @@
 			<groupId>com.github.f4b6a3</groupId>
 			<artifactId>uuid-creator</artifactId>
 			<version>5.3.7</version>
+		</dependency>
+
+		<!-- Cloudinary (file storage) -->
+		<dependency>
+			<groupId>com.cloudinary</groupId>
+			<artifactId>cloudinary-http5</artifactId>
+			<version>${cloudinary.version}</version>
 		</dependency>
 
 		<!-- Test -->
