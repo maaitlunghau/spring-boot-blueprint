@@ -1,5 +1,6 @@
 package com.maaitlunghau.spring_boot_blueprint.common.messaging.outbox;
 
+import java.time.Instant;
 import java.util.UUID;
 
 import com.maaitlunghau.spring_boot_blueprint.common.entity.BaseEntity;
@@ -36,6 +37,14 @@ public class OutboxEvent extends BaseEntity {
     @Column(name = "retry_count", nullable = false)
     private int retryCount;
 
+    @Column(name = "published_at")
+    private Instant publishedAt;
+
+    @Column(name = "last_error", length = 1000)
+    private String lastError;
+
+    private static final int MAX_RETRY_COUNT = 5;
+
     protected OutboxEvent() {
     }
 
@@ -47,6 +56,19 @@ public class OutboxEvent extends BaseEntity {
         this.payload = payload;
         this.status = OutboxStatus.PENDING;
         this.retryCount = 0;
+    }
+
+    public void markPublished() {
+        this.status = OutboxStatus.PUBLISHED;
+        this.publishedAt = Instant.now();
+    }
+
+    public void markFailed(String error) {
+        this.retryCount++;
+        this.lastError = error;
+        if (this.retryCount >= MAX_RETRY_COUNT) {
+            this.status = OutboxStatus.FAILED;
+        }
     }
 
     @Override

@@ -1,0 +1,3 @@
+ALTER TABLE outbox_events
+    ADD COLUMN last_error VARCHAR(1000) DEFAULT NULL,
+    ADD COLUMN published_at DATETIME(6) DEFAULT NULL;
