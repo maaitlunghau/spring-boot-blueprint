@@ -1,0 +1,41 @@
+package com.maaitlunghau.spring_boot_blueprint.module.notification.listener;
+
+import org.springframework.amqp.rabbit.annotation.RabbitListener;
+import org.springframework.stereotype.Component;
+
+import com.maaitlunghau.spring_boot_blueprint.common.notification.EmailService;
+import com.maaitlunghau.spring_boot_blueprint.config.RabbitMQConfig;
+import com.maaitlunghau.spring_boot_blueprint.module.user.event.UserBannedEvent;
+import com.maaitlunghau.spring_boot_blueprint.module.user.event.UserUnbannedEvent;
+
+@Component
+public class UserBanNotificationListener {
+
+    private final EmailService emailService;
+
+    public UserBanNotificationListener(EmailService emailService) {
+        this.emailService = emailService;
+    }
+
+    @RabbitListener(queues = RabbitMQConfig.USER_BAN_QUEUE)
+    public void onUserBanned(UserBannedEvent event) {
+        String until = event.bannedUntil() == null ? "permanently" : "until " + event.bannedUntil();
+
+        emailService.send(
+            event.email(),
+            "Your account has been banned",
+            "Hi %s,\n\nYour account has been banned %s.\nReason: %s\n\nIf you believe this is a mistake, please contact support."
+                .formatted(event.fullName(), until, event.reason())
+        );
+    }
+
+    @RabbitListener(queues = RabbitMQConfig.USER_UNBAN_QUEUE)
+    public void onUserUnbanned(UserUnbannedEvent event) {
+        emailService.send(
+            event.email(),
+            "Your account has been unbanned",
+            "Hi %s,\n\nYour account has been unbanned and you can now sign in again."
+                .formatted(event.fullName())
+        );
+    }
+}
