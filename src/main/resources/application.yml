@@ -41,6 +41,7 @@ app:
     cloud-name: ${CLOUDINARY_CLOUD_NAME}
     api-key: ${CLOUDINARY_API_KEY}
     api-secret: ${CLOUDINARY_API_SECRET}
+    root-folder: spring-boot-blueprint
 
   avatar:
     default-url: ${DEFAULT_AVATAR_URL:https://res.cloudinary.com/demo/image/upload/v1/samples/people/default-avatar.png}

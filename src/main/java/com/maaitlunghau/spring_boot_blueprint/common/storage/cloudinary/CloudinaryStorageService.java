@@ -3,6 +3,7 @@ package com.maaitlunghau.spring_boot_blueprint.common.storage.cloudinary;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -18,6 +19,9 @@ public class CloudinaryStorageService implements StorageService {
 
     private final Cloudinary cloudinary;
 
+    @Value("${app.cloudinary.root-folder}")
+    private String rootFolder;
+
     public CloudinaryStorageService(Cloudinary cloudinary) {
         this.cloudinary = cloudinary;
     }
@@ -26,7 +30,7 @@ public class CloudinaryStorageService implements StorageService {
     public StorageResult upload(MultipartFile file, String folder, ImageTransform transform) {
         try {
             Map<String, Object> options = new HashMap<>();
-            options.put("folder", folder);
+            options.put("folder", rootFolder + "/" + folder);
             options.put("fetch_format", "auto");
             options.put("quality", "auto");
 
