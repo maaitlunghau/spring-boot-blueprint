@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.maaitlunghau.spring_boot_blueprint.common.dto.PageResponse;
+import com.maaitlunghau.spring_boot_blueprint.common.storage.ImageTransform;
 import com.maaitlunghau.spring_boot_blueprint.common.storage.StorageResult;
 import com.maaitlunghau.spring_boot_blueprint.common.storage.StorageService;
 import com.maaitlunghau.spring_boot_blueprint.exception.BadRequestException;
@@ -39,6 +40,7 @@ public class UserServiceImpl implements UserService {
     private static final String AVATAR_FOLDER = "avatars";
     private static final Set<String> ALLOWED_AVATAR_TYPES = Set.of("image/jpeg", "image/png", "image/webp");
     private static final long MAX_AVATAR_SIZE = 5 * 1024 * 1024;
+    private static final ImageTransform AVATAR_TRANSFORM = new ImageTransform(512, 512, true);
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
@@ -121,7 +123,7 @@ public class UserServiceImpl implements UserService {
             throw new ResourceNotFoundException("User", id.toString());
         }
 
-        StorageResult result = storageService.upload(file, AVATAR_FOLDER);
+        StorageResult result = storageService.upload(file, AVATAR_FOLDER, AVATAR_TRANSFORM);
 
         User user = userRepository.findById(id)
             .orElseThrow(() -> new ResourceNotFoundException("User", id.toString()));

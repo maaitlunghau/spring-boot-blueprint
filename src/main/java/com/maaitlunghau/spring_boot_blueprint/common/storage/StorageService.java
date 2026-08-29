@@ -4,7 +4,11 @@ import org.springframework.web.multipart.MultipartFile;
 
 public interface StorageService {
 
-    StorageResult upload(MultipartFile file, String folder);
+    default StorageResult upload(MultipartFile file, String folder) {
+        return upload(file, folder, null);
+    }
+
+    StorageResult upload(MultipartFile file, String folder, ImageTransform transform);
 
     void delete(String publicId);
 }
