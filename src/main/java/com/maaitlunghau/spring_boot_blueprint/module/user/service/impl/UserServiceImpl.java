@@ -15,6 +15,7 @@ import org.springframework.web.multipart.MultipartFile;
 import com.maaitlunghau.spring_boot_blueprint.common.dto.PageResponse;
 import com.maaitlunghau.spring_boot_blueprint.common.messaging.outbox.OutboxEventWriter;
 import com.maaitlunghau.spring_boot_blueprint.common.storage.ImageTransform;
+import com.maaitlunghau.spring_boot_blueprint.config.RabbitMQConfig;
 import com.maaitlunghau.spring_boot_blueprint.common.storage.StorageResult;
 import com.maaitlunghau.spring_boot_blueprint.common.storage.StorageService;
 import com.maaitlunghau.spring_boot_blueprint.exception.BadRequestException;
@@ -49,8 +50,6 @@ public class UserServiceImpl implements UserService {
     private static final ImageTransform AVATAR_TRANSFORM = new ImageTransform(512, 512, true);
 
     private static final String USER_AGGREGATE_TYPE = "User";
-    private static final String USER_BANNED_ROUTING_KEY = "user.banned";
-    private static final String USER_UNBANNED_ROUTING_KEY = "user.unbanned";
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
@@ -148,7 +147,7 @@ public class UserServiceImpl implements UserService {
         outboxEventWriter.write(
             USER_AGGREGATE_TYPE,
             id,
-            USER_BANNED_ROUTING_KEY,
+            RabbitMQConfig.USER_BANNED_ROUTING_KEY,
             new UserBannedEvent(id, user.getEmail(), user.getFullName(), request.reason(), request.bannedUntil())
         );
 
@@ -171,7 +170,7 @@ public class UserServiceImpl implements UserService {
         outboxEventWriter.write(
             USER_AGGREGATE_TYPE,
             id,
-            USER_UNBANNED_ROUTING_KEY,
+            RabbitMQConfig.USER_UNBANNED_ROUTING_KEY,
             new UserUnbannedEvent(id, user.getEmail(), user.getFullName())
         );
 
