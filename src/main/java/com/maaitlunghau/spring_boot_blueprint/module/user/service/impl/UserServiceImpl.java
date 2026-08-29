@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.maaitlunghau.spring_boot_blueprint.common.dto.PageResponse;
+import com.maaitlunghau.spring_boot_blueprint.common.messaging.outbox.OutboxEventWriter;
 import com.maaitlunghau.spring_boot_blueprint.common.storage.ImageTransform;
 import com.maaitlunghau.spring_boot_blueprint.common.storage.StorageResult;
 import com.maaitlunghau.spring_boot_blueprint.common.storage.StorageService;
@@ -28,6 +29,8 @@ import com.maaitlunghau.spring_boot_blueprint.module.user.dto.request.UpdateRole
 import com.maaitlunghau.spring_boot_blueprint.module.user.dto.response.UserResponse;
 import com.maaitlunghau.spring_boot_blueprint.module.user.entity.Role;
 import com.maaitlunghau.spring_boot_blueprint.module.user.entity.User;
+import com.maaitlunghau.spring_boot_blueprint.module.user.event.UserBannedEvent;
+import com.maaitlunghau.spring_boot_blueprint.module.user.event.UserUnbannedEvent;
 import com.maaitlunghau.spring_boot_blueprint.module.user.mapper.UserMapper;
 import com.maaitlunghau.spring_boot_blueprint.module.user.repository.UserRepository;
 import com.maaitlunghau.spring_boot_blueprint.module.user.repository.spec.UserSpecifications;
@@ -45,10 +48,15 @@ public class UserServiceImpl implements UserService {
     private static final long MAX_AVATAR_SIZE = 5 * 1024 * 1024;
     private static final ImageTransform AVATAR_TRANSFORM = new ImageTransform(512, 512, true);
 
+    private static final String USER_AGGREGATE_TYPE = "User";
+    private static final String USER_BANNED_ROUTING_KEY = "user.banned";
+    private static final String USER_UNBANNED_ROUTING_KEY = "user.unbanned";
+
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final UserMapper userMapper;
     private final StorageService storageService;
+    private final OutboxEventWriter outboxEventWriter;
 
     @Value("${app.avatar.default-url}")
     private String defaultAvatarUrl;
@@ -57,12 +65,14 @@ public class UserServiceImpl implements UserService {
         UserRepository userRepository,
         PasswordEncoder passwordEncoder,
         UserMapper userMapper,
-        StorageService storageService
+        StorageService storageService,
+        OutboxEventWriter outboxEventWriter
     ) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.userMapper = userMapper;
         this.storageService = storageService;
+        this.outboxEventWriter = outboxEventWriter;
     }
 
     @Override
@@ -133,8 +143,16 @@ public class UserServiceImpl implements UserService {
         }
 
         user.ban(request.reason(), request.bannedUntil());
+        UserResponse response = userMapper.toResponse(userRepository.save(user));
 
-        return userMapper.toResponse(userRepository.save(user));
+        outboxEventWriter.write(
+            USER_AGGREGATE_TYPE,
+            id,
+            USER_BANNED_ROUTING_KEY,
+            new UserBannedEvent(id, user.getEmail(), user.getFullName(), request.reason(), request.bannedUntil())
+        );
+
+        return response;
     }
 
     @Override
@@ -148,8 +166,16 @@ public class UserServiceImpl implements UserService {
         }
 
         user.unban();
+        UserResponse response = userMapper.toResponse(userRepository.save(user));
 
-        return userMapper.toResponse(userRepository.save(user));
+        outboxEventWriter.write(
+            USER_AGGREGATE_TYPE,
+            id,
+            USER_UNBANNED_ROUTING_KEY,
+            new UserUnbannedEvent(id, user.getEmail(), user.getFullName())
+        );
+
+        return response;
     }
 
     @Override
