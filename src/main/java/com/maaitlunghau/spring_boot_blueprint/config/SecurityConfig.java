@@ -24,9 +24,10 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         return http
+            .csrf(csrf -> csrf.disable()) // for test (disable CSRF)
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(SWAGGER_PATHS).permitAll()
-                .anyRequest().authenticated())
+                .anyRequest().permitAll()) // for test (un authenticated)
             .build();
     }
 }

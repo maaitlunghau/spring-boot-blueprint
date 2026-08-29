@@ -11,12 +11,21 @@ spring:
 
   jpa:
     open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
 
   data:
     redis:
       host: ${REDIS_HOST:localhost}
       port: 6379
       password: ${REDIS_PASSWORD}
+
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 5MB
 
 server:
   port: 8081
@@ -27,3 +36,12 @@ app:
     access-token-expiration: 300000
     refresh-token-expiration: 604800000
     refresh-token-absolute-expiration: 2592000000
+
+  cloudinary:
+    cloud-name: ${CLOUDINARY_CLOUD_NAME}
+    api-key: ${CLOUDINARY_API_KEY}
+    api-secret: ${CLOUDINARY_API_SECRET}
+    root-folder: spring-boot-blueprint
+
+  avatar:
+    default-url: ${DEFAULT_AVATAR_URL:https://res.cloudinary.com/demo/image/upload/v1/samples/people/default-avatar.png}

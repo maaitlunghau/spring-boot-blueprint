@@ -14,5 +14,7 @@ public interface UserMapper {
 
     @Mapping(target = "passwordHash", ignore = true)
     @Mapping(target = "enabled", constant = "true")
+    @Mapping(target = "imageUrl", ignore = true)
+    @Mapping(target = "imagePublicId", ignore = true)
     User toEntity(CreateUserRequest request);
 }

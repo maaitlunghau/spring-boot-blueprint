@@ -49,6 +49,11 @@ jobs:
       # override the container command) — empty password, unlike local/prod compose.
       REDIS_PASSWORD: ""
       JWT_SECRET: ci-only-dummy-jwt-secret-not-used-anywhere-real
+      # Dummy values — CI only loads the Spring context (contextLoads test), never
+      # calls the real Cloudinary API, so these just need to be non-empty.
+      CLOUDINARY_CLOUD_NAME: ci-dummy-cloud-name
+      CLOUDINARY_API_KEY: ci-dummy-api-key
+      CLOUDINARY_API_SECRET: ci-dummy-api-secret
 
     steps:
       - uses: actions/checkout@v4

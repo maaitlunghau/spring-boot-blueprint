@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.maaitlunghau.spring_boot_blueprint.common.dto.ApiResponse;
 import com.maaitlunghau.spring_boot_blueprint.common.dto.PageResponse;
@@ -90,6 +91,20 @@ public class UserController {
                 HttpStatus.OK.value(), 
                 "Updated role successfully", 
                 userService.updateRole(id, request)
+            )
+        );
+    }
+
+    @PostMapping("/{id}/avatar")
+    public ResponseEntity<ApiResponse<UserResponse>> updateAvatar(
+        @PathVariable UUID id,
+        @RequestParam("file") MultipartFile file
+    ) {
+        return ResponseEntity.ok(
+            ApiResponse.of(
+                HttpStatus.OK.value(),
+                "Avatar updated successfully",
+                userService.updateAvatar(id, file)
             )
         );
     }
