@@ -141,4 +141,30 @@ the calling `User`'s id, add the same guard used for self-ban to
 
 ---
 
+## From: Email Verification feature (spec: `docs/superpowers/specs/2026-08-30-email-verification-design.md`)
+
+### 1. Self-register OTP flow — NOT IMPLEMENTED (by design, Auth module doesn't exist)
+
+**Gap:** Only admin-created users (`POST /api/users`) get an OTP issued today.
+A future self-register endpoint needs the same flow wired in at registration
+time.
+
+**What to do when Auth lands:** Reuse `UserServiceImpl`'s private
+`issueVerificationOtp` logic (promote it to a shared/injectable method if the
+register endpoint lives in a different service) from the new register
+endpoint — same event/queue/listener already built, no new infrastructure
+needed, just another caller.
+
+### 2. Unverified users are not blocked from anything — NOT IMPLEMENTED
+
+**Gap:** `emailVerified=false` is tracked but nothing currently prevents an
+unverified user from being fully functional (no login exists yet to gate).
+
+**What to do when Auth lands:** Decide whether login should require
+`emailVerified=true` (common production choice) — if so, check it in the
+authentication flow and return a clear error directing the user to verify,
+similar to the generic `BadCredentialsException` handling already in place.
+
+---
+
 ## From: (add future entries here, one `## From: <feature>` section per feature)
