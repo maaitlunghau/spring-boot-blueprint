@@ -14,6 +14,7 @@ import com.maaitlunghau.spring_boot_blueprint.config.RateLimitConfig.RateLimitRu
 import io.github.bucket4j.Bandwidth;
 import io.github.bucket4j.BucketConfiguration;
 import io.github.bucket4j.ConsumptionProbe;
+import io.github.bucket4j.TokensInheritanceStrategy;
 import io.github.bucket4j.distributed.BucketProxy;
 import io.github.bucket4j.redis.lettuce.cas.LettuceBasedProxyManager;
 import jakarta.servlet.FilterChain;
@@ -51,6 +52,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
         String key = "rate-limit:%s:%s:%s".formatted(request.getRemoteAddr(), rule.httpMethod(), rule.pathPattern());
 
         BucketProxy bucket = proxyManager.builder()
+            .withImplicitConfigurationReplacement(rule.configVersion(), TokensInheritanceStrategy.RESET)
             .build(key.getBytes(StandardCharsets.UTF_8), () -> bucketConfiguration(rule));
 
         ConsumptionProbe probe = bucket.tryConsumeAndReturnRemaining(1);

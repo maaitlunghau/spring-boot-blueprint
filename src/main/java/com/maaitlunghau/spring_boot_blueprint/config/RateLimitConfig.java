@@ -20,11 +20,16 @@ import tools.jackson.databind.ObjectMapper;
 @Configuration
 public class RateLimitConfig {
 
+    // configVersion: bump this whenever capacity/refillPeriod is deliberately changed for a rule —
+    // Bucket4j only replaces an already-persisted Redis bucket's config when it sees a higher
+    // version than what's stored, otherwise it keeps using whatever config the bucket was first
+    // created with (see RateLimitFilter's withImplicitConfigurationReplacement).
     public record RateLimitRule(
-        String pathPattern, 
-        String httpMethod, 
-        int capacity, 
-        Duration refillPeriod
+        String pathPattern,
+        String httpMethod,
+        int capacity,
+        Duration refillPeriod,
+        long configVersion
     ) {}
 
    private static final List<RateLimitRule> SENSITIVE_RULES = List.of(
@@ -32,29 +37,33 @@ public class RateLimitConfig {
             "/api/users",
             "POST",
             10,
-            Duration.ofMinutes(1)
+            Duration.ofMinutes(1),
+            1
         ),
         new RateLimitRule(
             "/api/users/*/ban",
             "PATCH",
             10,
-            Duration.ofMinutes(1)
+            Duration.ofMinutes(1),
+            1
         ),
         new RateLimitRule(
             "/api/users/*/unban",
             "PATCH",
             10,
-            Duration.ofMinutes(1)
+            Duration.ofMinutes(1),
+            1
         ),
         new RateLimitRule(
             "/api/users/*/avatar",
             "POST",
-            10,
-            Duration.ofMinutes(1)
+            3,
+            Duration.ofMinutes(1),
+            2
         )
     );
 
-    private static final RateLimitRule DEFAULT_RULE = new RateLimitRule("/**", "*", 100, Duration.ofMinutes(1));
+    private static final RateLimitRule DEFAULT_RULE = new RateLimitRule("/**", "*", 100, Duration.ofMinutes(1), 1);
 
     public List<RateLimitRule> getRules() {
         return SENSITIVE_RULES;
@@ -106,7 +115,7 @@ public class RateLimitConfig {
     public FilterRegistrationBean<RateLimitFilter> rateLimitFilterRegistration(RateLimitFilter rateLimitFilter) {
         FilterRegistrationBean<RateLimitFilter> registration = new FilterRegistrationBean<>(rateLimitFilter);
         registration.setEnabled(false);
-        
+
         return registration;
     }
 }
