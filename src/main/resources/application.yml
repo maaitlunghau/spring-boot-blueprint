@@ -70,3 +70,4 @@ app:
 
   email-verification:
     otp-expiration-minutes: 10
+    resend-cooldown-seconds: 60

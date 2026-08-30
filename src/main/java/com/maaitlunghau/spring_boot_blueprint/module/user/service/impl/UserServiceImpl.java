@@ -1,6 +1,7 @@
 package com.maaitlunghau.spring_boot_blueprint.module.user.service.impl;
 
 import java.security.SecureRandom;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Set;
@@ -25,6 +26,7 @@ import com.maaitlunghau.spring_boot_blueprint.exception.BadRequestException;
 import com.maaitlunghau.spring_boot_blueprint.exception.DuplicateResourceException;
 import com.maaitlunghau.spring_boot_blueprint.exception.EmailPendingPurgeException;
 import com.maaitlunghau.spring_boot_blueprint.exception.InvalidOtpException;
+import com.maaitlunghau.spring_boot_blueprint.exception.ResendCooldownException;
 import com.maaitlunghau.spring_boot_blueprint.exception.ResourceNotFoundException;
 import com.maaitlunghau.spring_boot_blueprint.exception.UserAlreadyVerifiedException;
 import com.maaitlunghau.spring_boot_blueprint.exception.UserAlreadyBannedException;
@@ -77,6 +79,9 @@ public class UserServiceImpl implements UserService {
 
     @Value("${app.email-verification.otp-expiration-minutes}")
     private int otpExpirationMinutes;
+
+    @Value("${app.email-verification.resend-cooldown-seconds}")
+    private long resendCooldownSeconds;
 
     public UserServiceImpl(
         UserRepository userRepository,
@@ -253,6 +258,26 @@ public class UserServiceImpl implements UserService {
 
         user.verifyEmail();
         return userMapper.toResponse(userRepository.save(user));
+    }
+
+    @Override
+    @Transactional
+    public void resendVerificationOtp(UUID id) {
+        User user = userRepository.findByIdAndDeletedAtIsNull(id)
+            .orElseThrow(() -> new ResourceNotFoundException("User", id.toString()));
+
+        if (user.isEmailVerified()) {
+            throw new UserAlreadyVerifiedException(id.toString());
+        }
+
+        emailVerificationTokenRepository.findTopByUserIdOrderByCreatedAtDesc(id).ifPresent(latest -> {
+            Instant cooldownEnds = latest.getCreatedAt().plusSeconds(resendCooldownSeconds);
+            if (Instant.now().isBefore(cooldownEnds)) {
+                throw new ResendCooldownException(Duration.between(Instant.now(), cooldownEnds).getSeconds());
+            }
+        });
+
+        issueVerificationOtp(user);
     }
 
     @Override

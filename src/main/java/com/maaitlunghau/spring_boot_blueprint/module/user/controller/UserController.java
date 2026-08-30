@@ -154,6 +154,14 @@ public class UserController {
         );
     }
 
+    @PostMapping("/{id}/resend-verification-otp")
+    public ResponseEntity<ApiResponse<Void>> resendVerificationOtp(@PathVariable UUID id) {
+        userService.resendVerificationOtp(id);
+        return ResponseEntity.ok(
+            ApiResponse.message(HttpStatus.OK.value(), "Verification code resent")
+        );
+    }
+
     @PostMapping("/{id}/avatar")
     public ResponseEntity<ApiResponse<UserResponse>> updateAvatar(
         @PathVariable UUID id,
