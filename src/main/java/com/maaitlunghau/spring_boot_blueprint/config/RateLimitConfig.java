@@ -81,6 +81,20 @@ public class RateLimitConfig {
             10,
             Duration.ofMinutes(1),
             1
+        ),
+        new RateLimitRule(
+            "/api/users/*/verify-email",
+            "POST",
+            10,
+            Duration.ofMinutes(1),
+            1
+        ),
+        new RateLimitRule(
+            "/api/users/*/resend-verification-otp",
+            "POST",
+            5,
+            Duration.ofMinutes(1),
+            1
         )
     );
 
