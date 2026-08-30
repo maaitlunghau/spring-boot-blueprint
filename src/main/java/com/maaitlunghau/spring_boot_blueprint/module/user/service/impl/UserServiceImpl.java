@@ -270,11 +270,14 @@ public class UserServiceImpl implements UserService {
             throw new UserAlreadyVerifiedException(id.toString());
         }
 
-        emailVerificationTokenRepository.findTopByUserIdOrderByCreatedAtDesc(id).ifPresent(latest -> {
-            Instant cooldownEnds = latest.getCreatedAt().plusSeconds(resendCooldownSeconds);
-            if (Instant.now().isBefore(cooldownEnds)) {
-                throw new ResendCooldownException(Duration.between(Instant.now(), cooldownEnds).getSeconds());
-            }
+        emailVerificationTokenRepository
+            .findTopByUserIdOrderByCreatedAtDesc(id)
+            .ifPresent(latest -> {
+                Instant cooldownEnds = latest.getCreatedAt().plusSeconds(resendCooldownSeconds);
+
+                if (Instant.now().isBefore(cooldownEnds)) {
+                    throw new ResendCooldownException(Duration.between(Instant.now(), cooldownEnds).getSeconds());
+                }
         });
 
         issueVerificationOtp(user);
@@ -373,9 +376,11 @@ public class UserServiceImpl implements UserService {
         if (file == null || file.isEmpty()) {
             throw new BadRequestException("File is required");
         }
+
         if (!ALLOWED_AVATAR_TYPES.contains(file.getContentType())) {
             throw new BadRequestException("Only JPG, PNG, WEBP images are allowed");
         }
+        
         if (file.getSize() > MAX_AVATAR_SIZE) {
             throw new BadRequestException("File size must not exceed 5MB");
         }
