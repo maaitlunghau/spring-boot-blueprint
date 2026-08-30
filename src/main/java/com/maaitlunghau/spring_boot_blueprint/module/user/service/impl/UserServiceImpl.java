@@ -23,6 +23,7 @@ import com.maaitlunghau.spring_boot_blueprint.exception.DuplicateResourceExcepti
 import com.maaitlunghau.spring_boot_blueprint.exception.ResourceNotFoundException;
 import com.maaitlunghau.spring_boot_blueprint.exception.UserAlreadyBannedException;
 import com.maaitlunghau.spring_boot_blueprint.exception.UserNotBannedException;
+import com.maaitlunghau.spring_boot_blueprint.exception.UserNotDeletedException;
 import com.maaitlunghau.spring_boot_blueprint.module.user.dto.request.BanUserRequest;
 import com.maaitlunghau.spring_boot_blueprint.module.user.dto.request.CreateUserRequest;
 import com.maaitlunghau.spring_boot_blueprint.module.user.dto.request.UpdateProfileRequest;
@@ -32,6 +33,7 @@ import com.maaitlunghau.spring_boot_blueprint.module.user.entity.Role;
 import com.maaitlunghau.spring_boot_blueprint.module.user.entity.User;
 import com.maaitlunghau.spring_boot_blueprint.module.user.event.UserBannedEvent;
 import com.maaitlunghau.spring_boot_blueprint.module.user.event.UserDeletedEvent;
+import com.maaitlunghau.spring_boot_blueprint.module.user.event.UserRestoredEvent;
 import com.maaitlunghau.spring_boot_blueprint.module.user.event.UserUnbannedEvent;
 import com.maaitlunghau.spring_boot_blueprint.module.user.mapper.UserMapper;
 import com.maaitlunghau.spring_boot_blueprint.module.user.repository.UserRepository;
@@ -173,6 +175,25 @@ public class UserServiceImpl implements UserService {
             id,
             RabbitMQConfig.USER_UNBANNED_ROUTING_KEY,
             new UserUnbannedEvent(id, user.getEmail(), user.getFullName())
+        );
+
+        return response;
+    }
+
+    @Override
+    @Transactional
+    public UserResponse restoreUser(UUID id) {
+        User user = userRepository.findByIdAndDeletedAtIsNotNull(id)
+            .orElseThrow(() -> new UserNotDeletedException(id.toString()));
+
+        user.restore();
+        UserResponse response = userMapper.toResponse(userRepository.save(user));
+
+        outboxEventWriter.write(
+            USER_AGGREGATE_TYPE,
+            id,
+            RabbitMQConfig.USER_RESTORED_ROUTING_KEY,
+            new UserRestoredEvent(id, user.getEmail(), user.getFullName())
         );
 
         return response;

@@ -31,5 +31,7 @@ public interface UserService {
 
     UserResponse unbanUser(UUID id);
 
+    UserResponse restoreUser(UUID id);
+
     void deleteUser(UUID id);
 }

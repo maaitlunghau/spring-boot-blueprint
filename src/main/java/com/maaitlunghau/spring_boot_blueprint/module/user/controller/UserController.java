@@ -121,6 +121,17 @@ public class UserController {
         );
     }
 
+    @PatchMapping("/{id}/restore")
+    public ResponseEntity<ApiResponse<UserResponse>> restoreUser(@PathVariable UUID id) {
+        return ResponseEntity.ok(
+            ApiResponse.of(
+                HttpStatus.OK.value(),
+                "User restored successfully",
+                userService.restoreUser(id)
+            )
+        );
+    }
+
     @PostMapping("/{id}/avatar")
     public ResponseEntity<ApiResponse<UserResponse>> updateAvatar(
         @PathVariable UUID id,
