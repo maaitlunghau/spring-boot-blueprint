@@ -22,6 +22,7 @@ import com.maaitlunghau.spring_boot_blueprint.module.user.dto.request.BanUserReq
 import com.maaitlunghau.spring_boot_blueprint.module.user.dto.request.CreateUserRequest;
 import com.maaitlunghau.spring_boot_blueprint.module.user.dto.request.UpdateProfileRequest;
 import com.maaitlunghau.spring_boot_blueprint.module.user.dto.request.UpdateRoleRequest;
+import com.maaitlunghau.spring_boot_blueprint.module.user.dto.request.VerifyEmailRequest;
 import com.maaitlunghau.spring_boot_blueprint.module.user.dto.response.UserResponse;
 import com.maaitlunghau.spring_boot_blueprint.module.user.entity.Role;
 import com.maaitlunghau.spring_boot_blueprint.module.user.service.UserService;
@@ -136,6 +137,28 @@ public class UserController {
                 "User restored successfully",
                 userService.restoreUser(id)
             )
+        );
+    }
+
+    @PostMapping("/{id}/verify-email")
+    public ResponseEntity<ApiResponse<UserResponse>> verifyEmail(
+        @PathVariable UUID id,
+        @Valid @RequestBody VerifyEmailRequest request
+    ) {
+        return ResponseEntity.ok(
+            ApiResponse.of(
+                HttpStatus.OK.value(),
+                "Email verified successfully",
+                userService.verifyEmail(id, request.otp())
+            )
+        );
+    }
+
+    @PostMapping("/{id}/resend-verification-otp")
+    public ResponseEntity<ApiResponse<Void>> resendVerificationOtp(@PathVariable UUID id) {
+        userService.resendVerificationOtp(id);
+        return ResponseEntity.ok(
+            ApiResponse.message(HttpStatus.OK.value(), "Verification code resent")
         );
     }
 

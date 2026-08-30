@@ -1,5 +1,9 @@
 package com.maaitlunghau.spring_boot_blueprint.module.user.service.impl;
 
+import java.security.SecureRandom;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Set;
 import java.util.UUID;
 
@@ -21,7 +25,10 @@ import com.maaitlunghau.spring_boot_blueprint.common.storage.StorageService;
 import com.maaitlunghau.spring_boot_blueprint.exception.BadRequestException;
 import com.maaitlunghau.spring_boot_blueprint.exception.DuplicateResourceException;
 import com.maaitlunghau.spring_boot_blueprint.exception.EmailPendingPurgeException;
+import com.maaitlunghau.spring_boot_blueprint.exception.InvalidOtpException;
+import com.maaitlunghau.spring_boot_blueprint.exception.ResendCooldownException;
 import com.maaitlunghau.spring_boot_blueprint.exception.ResourceNotFoundException;
+import com.maaitlunghau.spring_boot_blueprint.exception.UserAlreadyVerifiedException;
 import com.maaitlunghau.spring_boot_blueprint.exception.UserAlreadyBannedException;
 import com.maaitlunghau.spring_boot_blueprint.exception.UserNotBannedException;
 import com.maaitlunghau.spring_boot_blueprint.exception.UserNotDeletedException;
@@ -30,13 +37,16 @@ import com.maaitlunghau.spring_boot_blueprint.module.user.dto.request.CreateUser
 import com.maaitlunghau.spring_boot_blueprint.module.user.dto.request.UpdateProfileRequest;
 import com.maaitlunghau.spring_boot_blueprint.module.user.dto.request.UpdateRoleRequest;
 import com.maaitlunghau.spring_boot_blueprint.module.user.dto.response.UserResponse;
+import com.maaitlunghau.spring_boot_blueprint.module.user.entity.EmailVerificationToken;
 import com.maaitlunghau.spring_boot_blueprint.module.user.entity.Role;
 import com.maaitlunghau.spring_boot_blueprint.module.user.entity.User;
+import com.maaitlunghau.spring_boot_blueprint.module.user.event.EmailVerificationOtpEvent;
 import com.maaitlunghau.spring_boot_blueprint.module.user.event.UserBannedEvent;
 import com.maaitlunghau.spring_boot_blueprint.module.user.event.UserDeletedEvent;
 import com.maaitlunghau.spring_boot_blueprint.module.user.event.UserRestoredEvent;
 import com.maaitlunghau.spring_boot_blueprint.module.user.event.UserUnbannedEvent;
 import com.maaitlunghau.spring_boot_blueprint.module.user.mapper.UserMapper;
+import com.maaitlunghau.spring_boot_blueprint.module.user.repository.EmailVerificationTokenRepository;
 import com.maaitlunghau.spring_boot_blueprint.module.user.repository.UserRepository;
 import com.maaitlunghau.spring_boot_blueprint.module.user.repository.spec.UserSpecifications;
 import com.maaitlunghau.spring_boot_blueprint.module.user.service.UserService;
@@ -55,27 +65,38 @@ public class UserServiceImpl implements UserService {
 
     private static final String USER_AGGREGATE_TYPE = "User";
 
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
+
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final UserMapper userMapper;
     private final StorageService storageService;
     private final OutboxEventWriter outboxEventWriter;
+    private final EmailVerificationTokenRepository emailVerificationTokenRepository;
 
     @Value("${app.avatar.default-url}")
     private String defaultAvatarUrl;
+
+    @Value("${app.email-verification.otp-expiration-minutes}")
+    private int otpExpirationMinutes;
+
+    @Value("${app.email-verification.resend-cooldown-seconds}")
+    private long resendCooldownSeconds;
 
     public UserServiceImpl(
         UserRepository userRepository,
         PasswordEncoder passwordEncoder,
         UserMapper userMapper,
         StorageService storageService,
-        OutboxEventWriter outboxEventWriter
+        OutboxEventWriter outboxEventWriter,
+        EmailVerificationTokenRepository emailVerificationTokenRepository
     ) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.userMapper = userMapper;
         this.storageService = storageService;
         this.outboxEventWriter = outboxEventWriter;
+        this.emailVerificationTokenRepository = emailVerificationTokenRepository;
     }
 
     @Override
@@ -114,7 +135,10 @@ public class UserServiceImpl implements UserService {
         user.changePassword(passwordEncoder.encode(request.password()));
         user.updateAvatar(defaultAvatarUrl, null);
 
-        return userMapper.toResponse(userRepository.save(user));
+        User saved = userRepository.save(user);
+        issueVerificationOtp(saved);
+
+        return userMapper.toResponse(saved);
     }
 
     @Override
@@ -210,6 +234,53 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    @Transactional(noRollbackFor = InvalidOtpException.class)
+    public UserResponse verifyEmail(UUID id, String otp) {
+        User user = userRepository.findByIdAndDeletedAtIsNull(id)
+            .orElseThrow(() -> new ResourceNotFoundException("User", id.toString()));
+
+        if (user.isEmailVerified()) {
+            throw new UserAlreadyVerifiedException(id.toString());
+        }
+
+        EmailVerificationToken token = emailVerificationTokenRepository.findTopByUserIdOrderByCreatedAtDesc(id)
+            .filter(t -> !t.isUsed() && !t.isExpired() && !t.isAttemptsExceeded())
+            .orElseThrow(InvalidOtpException::new);
+
+        if (!passwordEncoder.matches(otp, token.getOtpHash())) {
+            token.incrementAttempt();
+            emailVerificationTokenRepository.save(token);
+            throw new InvalidOtpException();
+        }
+
+        token.markUsed();
+        emailVerificationTokenRepository.save(token);
+
+        user.verifyEmail();
+        return userMapper.toResponse(userRepository.save(user));
+    }
+
+    @Override
+    @Transactional
+    public void resendVerificationOtp(UUID id) {
+        User user = userRepository.findByIdAndDeletedAtIsNull(id)
+            .orElseThrow(() -> new ResourceNotFoundException("User", id.toString()));
+
+        if (user.isEmailVerified()) {
+            throw new UserAlreadyVerifiedException(id.toString());
+        }
+
+        emailVerificationTokenRepository.findTopByUserIdOrderByCreatedAtDesc(id).ifPresent(latest -> {
+            Instant cooldownEnds = latest.getCreatedAt().plusSeconds(resendCooldownSeconds);
+            if (Instant.now().isBefore(cooldownEnds)) {
+                throw new ResendCooldownException(Duration.between(Instant.now(), cooldownEnds).getSeconds());
+            }
+        });
+
+        issueVerificationOtp(user);
+    }
+
+    @Override
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public UserResponse updateAvatar(UUID id, MultipartFile file) {
         validateAvatarFile(file);
@@ -274,6 +345,28 @@ public class UserServiceImpl implements UserService {
                 log.warn("Failed to delete avatar '{}' for purged user {}", user.getImagePublicId(), id, e);
             }
         }
+    }
+
+    private String generateOtp() {
+        return String.format("%06d", SECURE_RANDOM.nextInt(1_000_000));
+    }
+
+    private void issueVerificationOtp(User user) {
+        String otp = generateOtp();
+
+        EmailVerificationToken token = EmailVerificationToken.builder()
+            .userId(user.getId())
+            .otpHash(passwordEncoder.encode(otp))
+            .expiresAt(Instant.now().plus(otpExpirationMinutes, ChronoUnit.MINUTES))
+            .build();
+        emailVerificationTokenRepository.save(token);
+
+        outboxEventWriter.write(
+            USER_AGGREGATE_TYPE,
+            user.getId(),
+            RabbitMQConfig.EMAIL_VERIFICATION_ROUTING_KEY,
+            new EmailVerificationOtpEvent(user.getId(), user.getEmail(), user.getFullName(), otp)
+        );
     }
 
     private void validateAvatarFile(MultipartFile file) {
