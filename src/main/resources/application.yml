@@ -67,3 +67,6 @@ app:
   user:
     soft-delete:
       retention-days: 30
+
+  email-verification:
+    otp-expiration-minutes: 10

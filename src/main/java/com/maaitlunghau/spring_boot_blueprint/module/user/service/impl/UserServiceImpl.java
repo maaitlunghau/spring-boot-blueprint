@@ -1,5 +1,8 @@
 package com.maaitlunghau.spring_boot_blueprint.module.user.service.impl;
 
+import java.security.SecureRandom;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Set;
 import java.util.UUID;
 
@@ -30,13 +33,16 @@ import com.maaitlunghau.spring_boot_blueprint.module.user.dto.request.CreateUser
 import com.maaitlunghau.spring_boot_blueprint.module.user.dto.request.UpdateProfileRequest;
 import com.maaitlunghau.spring_boot_blueprint.module.user.dto.request.UpdateRoleRequest;
 import com.maaitlunghau.spring_boot_blueprint.module.user.dto.response.UserResponse;
+import com.maaitlunghau.spring_boot_blueprint.module.user.entity.EmailVerificationToken;
 import com.maaitlunghau.spring_boot_blueprint.module.user.entity.Role;
 import com.maaitlunghau.spring_boot_blueprint.module.user.entity.User;
+import com.maaitlunghau.spring_boot_blueprint.module.user.event.EmailVerificationOtpEvent;
 import com.maaitlunghau.spring_boot_blueprint.module.user.event.UserBannedEvent;
 import com.maaitlunghau.spring_boot_blueprint.module.user.event.UserDeletedEvent;
 import com.maaitlunghau.spring_boot_blueprint.module.user.event.UserRestoredEvent;
 import com.maaitlunghau.spring_boot_blueprint.module.user.event.UserUnbannedEvent;
 import com.maaitlunghau.spring_boot_blueprint.module.user.mapper.UserMapper;
+import com.maaitlunghau.spring_boot_blueprint.module.user.repository.EmailVerificationTokenRepository;
 import com.maaitlunghau.spring_boot_blueprint.module.user.repository.UserRepository;
 import com.maaitlunghau.spring_boot_blueprint.module.user.repository.spec.UserSpecifications;
 import com.maaitlunghau.spring_boot_blueprint.module.user.service.UserService;
@@ -55,27 +61,35 @@ public class UserServiceImpl implements UserService {
 
     private static final String USER_AGGREGATE_TYPE = "User";
 
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
+
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final UserMapper userMapper;
     private final StorageService storageService;
     private final OutboxEventWriter outboxEventWriter;
+    private final EmailVerificationTokenRepository emailVerificationTokenRepository;
 
     @Value("${app.avatar.default-url}")
     private String defaultAvatarUrl;
+
+    @Value("${app.email-verification.otp-expiration-minutes}")
+    private int otpExpirationMinutes;
 
     public UserServiceImpl(
         UserRepository userRepository,
         PasswordEncoder passwordEncoder,
         UserMapper userMapper,
         StorageService storageService,
-        OutboxEventWriter outboxEventWriter
+        OutboxEventWriter outboxEventWriter,
+        EmailVerificationTokenRepository emailVerificationTokenRepository
     ) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.userMapper = userMapper;
         this.storageService = storageService;
         this.outboxEventWriter = outboxEventWriter;
+        this.emailVerificationTokenRepository = emailVerificationTokenRepository;
     }
 
     @Override
@@ -114,7 +128,10 @@ public class UserServiceImpl implements UserService {
         user.changePassword(passwordEncoder.encode(request.password()));
         user.updateAvatar(defaultAvatarUrl, null);
 
-        return userMapper.toResponse(userRepository.save(user));
+        User saved = userRepository.save(user);
+        issueVerificationOtp(saved);
+
+        return userMapper.toResponse(saved);
     }
 
     @Override
@@ -274,6 +291,28 @@ public class UserServiceImpl implements UserService {
                 log.warn("Failed to delete avatar '{}' for purged user {}", user.getImagePublicId(), id, e);
             }
         }
+    }
+
+    private String generateOtp() {
+        return String.format("%06d", SECURE_RANDOM.nextInt(1_000_000));
+    }
+
+    private void issueVerificationOtp(User user) {
+        String otp = generateOtp();
+
+        EmailVerificationToken token = EmailVerificationToken.builder()
+            .userId(user.getId())
+            .otpHash(passwordEncoder.encode(otp))
+            .expiresAt(Instant.now().plus(otpExpirationMinutes, ChronoUnit.MINUTES))
+            .build();
+        emailVerificationTokenRepository.save(token);
+
+        outboxEventWriter.write(
+            USER_AGGREGATE_TYPE,
+            user.getId(),
+            RabbitMQConfig.EMAIL_VERIFICATION_ROUTING_KEY,
+            new EmailVerificationOtpEvent(user.getId(), user.getEmail(), user.getFullName(), otp)
+        );
     }
 
     private void validateAvatarFile(MultipartFile file) {

@@ -5,6 +5,7 @@ import org.springframework.stereotype.Component;
 
 import com.maaitlunghau.spring_boot_blueprint.common.notification.EmailService;
 import com.maaitlunghau.spring_boot_blueprint.config.RabbitMQConfig;
+import com.maaitlunghau.spring_boot_blueprint.module.user.event.EmailVerificationOtpEvent;
 import com.maaitlunghau.spring_boot_blueprint.module.user.event.UserBannedEvent;
 import com.maaitlunghau.spring_boot_blueprint.module.user.event.UserDeletedEvent;
 import com.maaitlunghau.spring_boot_blueprint.module.user.event.UserRestoredEvent;
@@ -58,6 +59,16 @@ public class UserAccountNotificationListener {
             "Your account has been restored",
             "Hi %s,\n\nYour account has been restored and you can sign in again."
                 .formatted(event.fullName())
+        );
+    }
+
+    @RabbitListener(queues = RabbitMQConfig.EMAIL_VERIFICATION_QUEUE)
+    public void onEmailVerificationOtpIssued(EmailVerificationOtpEvent event) {
+        emailService.send(
+            event.email(),
+            "Verify your email address",
+            "Hi %s,\n\nYour verification code is: %s\n\nThis code will expire in 10 minutes. If you did not request this, please ignore this email."
+                .formatted(event.fullName(), event.otp())
         );
     }
 }
