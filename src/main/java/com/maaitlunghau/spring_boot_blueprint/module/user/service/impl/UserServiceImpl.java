@@ -259,6 +259,23 @@ public class UserServiceImpl implements UserService {
         );
     }
 
+    @Override
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    public void purgeUser(UUID id) {
+        User user = userRepository.findByIdAndDeletedAtIsNotNull(id)
+            .orElseThrow(() -> new UserNotDeletedException(id.toString()));
+
+        userRepository.deleteById(id);
+
+        if (user.getImagePublicId() != null) {
+            try {
+                storageService.delete(user.getImagePublicId());
+            } catch (Exception e) {
+                log.warn("Failed to delete avatar '{}' for purged user {}", user.getImagePublicId(), id, e);
+            }
+        }
+    }
+
     private void validateAvatarFile(MultipartFile file) {
         if (file == null || file.isEmpty()) {
             throw new BadRequestException("File is required");

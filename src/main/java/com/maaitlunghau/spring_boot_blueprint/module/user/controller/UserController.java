@@ -158,9 +158,17 @@ public class UserController {
         userService.deleteUser(id);
         return ResponseEntity.ok(
             ApiResponse.message(
-                HttpStatus.OK.value(), 
+                HttpStatus.OK.value(),
                 "User deleted successfully"
             )
+        );
+    }
+
+    @DeleteMapping("/{id}/purge")
+    public ResponseEntity<ApiResponse<Void>> purgeUser(@PathVariable UUID id) {
+        userService.purgeUser(id);
+        return ResponseEntity.ok(
+            ApiResponse.message(HttpStatus.OK.value(), "User permanently deleted")
         );
     }
 }

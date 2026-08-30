@@ -36,4 +36,6 @@ public interface UserService {
     UserResponse restoreUser(UUID id);
 
     void deleteUser(UUID id);
+
+    void purgeUser(UUID id);
 }
