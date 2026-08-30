@@ -88,6 +88,12 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    public PageResponse<UserResponse> getDeletedUsers(Pageable pageable) {
+        Page<User> page = userRepository.findAll(UserSpecifications.onlyDeleted(), pageable);
+        return PageResponse.from(page.map(userMapper::toResponse));
+    }
+
+    @Override
     public UserResponse getUserById(UUID id) {
         return userRepository.findByIdAndDeletedAtIsNull(id)
             .map(userMapper::toResponse)

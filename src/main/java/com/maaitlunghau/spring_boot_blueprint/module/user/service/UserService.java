@@ -17,6 +17,8 @@ public interface UserService {
 
     PageResponse<UserResponse> getAllUsers(String keyword, Role role, Pageable pageable);
 
+    PageResponse<UserResponse> getDeletedUsers(Pageable pageable);
+
     UserResponse getUserById(UUID id);
 
     UserResponse createUser(CreateUserRequest request);

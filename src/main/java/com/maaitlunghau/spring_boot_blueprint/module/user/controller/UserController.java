@@ -49,6 +49,13 @@ public class UserController {
         );
     }
 
+    @GetMapping("/deleted")
+    public ResponseEntity<ApiResponse<PageResponse<UserResponse>>> getDeletedUsers(Pageable pageable) {
+        return ResponseEntity.ok(
+            ApiResponse.ok(userService.getDeletedUsers(pageable))
+        );
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<UserResponse>> getUserById(@PathVariable UUID id) {
         return ResponseEntity.ok(
