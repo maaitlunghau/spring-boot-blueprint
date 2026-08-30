@@ -122,4 +122,23 @@ from `User`).
 
 ---
 
+## From: Soft Delete & Restore User feature (spec: `docs/superpowers/specs/2026-08-30-soft-delete-restore-user-design.md`)
+
+### 1. Self-delete prevention — NOT IMPLEMENTED
+
+**Gap:** An admin can currently soft-delete or purge their own account — nothing
+compares the target id against the caller's id, same root cause as the
+existing self-ban gap.
+
+**Why deferred:** There is no authenticated-caller identity available inside
+`UserServiceImpl` today — see the identical reasoning already written up for
+self-ban prevention above.
+
+**What to do when Auth lands:** Once `SecurityContextHolder` reliably holds
+the calling `User`'s id, add the same guard used for self-ban to
+`UserServiceImpl.deleteUser` and `purgeUser`:
+`if (id.equals(currentUserId)) throw new BadRequestException("Cannot delete yourself")`.
+
+---
+
 ## From: (add future entries here, one `## From: <feature>` section per feature)
