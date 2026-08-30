@@ -31,6 +31,7 @@
 		<mapstruct.version>1.6.3</mapstruct.version>
 		<springdoc.version>3.1.0</springdoc.version>
 		<cloudinary.version>2.3.0</cloudinary.version>
+		<bucket4j.version>8.10.1</bucket4j.version>
 	</properties>
 	<dependencies>
 		<!-- JPA -->
@@ -112,6 +113,13 @@
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-mail</artifactId>
+		</dependency>
+
+		<!-- Rate limiting -->
+		<dependency>
+			<groupId>com.bucket4j</groupId>
+			<artifactId>bucket4j-redis</artifactId>
+			<version>${bucket4j.version}</version>
 		</dependency>
 
 		<!-- OpenAPI / Swagger UI -->

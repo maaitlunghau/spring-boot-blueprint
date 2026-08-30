@@ -88,4 +88,38 @@ the codebase.
 
 ---
 
+## From: API Rate Limiting feature (spec: `docs/superpowers/specs/2026-08-30-rate-limiting-design.md`)
+
+### 1. Rate limiting is IP-only — no per-user tier
+
+**Gap:** `filter/RateLimitFilter` keys every bucket on `request.getRemoteAddr()`
+only. Every client behind the same IP (NAT, corporate network, public WiFi,
+mobile carrier-grade NAT) shares one bucket — a legitimate burst of different
+users can trip the limit for all of them, and there's no way to give a known,
+authenticated user a more generous (or stricter, e.g. for a flagged account)
+allowance than an anonymous caller.
+
+**Why deferred:** Same root cause as the Ban/Unban gaps above — no
+authenticated-caller identity exists yet (`SecurityContext` isn't populated
+from `User`).
+
+**What to do when Auth lands:**
+- Add a second bucket key dimension for authenticated requests: once a
+  request has a resolved `User` id (from the JWT), key its bucket on
+  `userId` instead of (or in addition to) IP — e.g.
+  `rate-limit:user:{userId}:{tier}` vs. the current `rate-limit:{ip}:{tier}`.
+- Don't remove IP-based limiting outright — unauthenticated endpoints (public
+  registration, login itself) still need it, and it's the only defense until
+  a request is authenticated.
+- Decide whether authenticated users get a *looser* tier (trusted, accountable
+  identity) — this was the direction discussed during brainstorming but not
+  finalized since Auth didn't exist yet to design against.
+- A future `POST /api/auth/login` endpoint (once it exists) will need its own
+  strict IP-based tier here regardless of the above — brute-force protection
+  on login is independent of per-user limiting and should be added to
+  `RateLimitConfig.SENSITIVE_RULES` when that endpoint is built, not
+  forgotten because "rate limiting already exists."
+
+---
+
 ## From: (add future entries here, one `## From: <feature>` section per feature)

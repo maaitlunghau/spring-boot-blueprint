@@ -6,6 +6,9 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.session.DisableEncodeUrlFilter;
+
+import com.maaitlunghau.spring_boot_blueprint.filter.RateLimitFilter;
 
 @Configuration
 public class SecurityConfig {
@@ -22,9 +25,10 @@ public class SecurityConfig {
     }
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http, RateLimitFilter rateLimitFilter) throws Exception {
         return http
             .csrf(csrf -> csrf.disable()) // for test (disable CSRF)
+            .addFilterBefore(rateLimitFilter, DisableEncodeUrlFilter.class)
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(SWAGGER_PATHS).permitAll()
                 .anyRequest().permitAll()) // for test (un authenticated)
