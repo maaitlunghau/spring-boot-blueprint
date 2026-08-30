@@ -56,6 +56,12 @@ public class User extends BaseEntity {
     @Column(name = "deleted_at", nullable = true)
     private Instant deletedAt;
 
+    @Column(name = "email_verified", nullable = false)
+    private boolean emailVerified;
+
+    @Column(name = "email_verified_at", nullable = true)
+    private Instant emailVerifiedAt;
+
     protected User() {
     }
 
@@ -115,6 +121,11 @@ public class User extends BaseEntity {
 
     public void restore() {
         this.deletedAt = null;
+    }
+
+    public void verifyEmail() {
+        this.emailVerified = true;
+        this.emailVerifiedAt = Instant.now();
     }
 
     private static String normalizeEmail(String email) {

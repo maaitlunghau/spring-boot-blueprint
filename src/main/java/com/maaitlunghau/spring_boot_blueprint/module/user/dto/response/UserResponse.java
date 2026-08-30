@@ -15,5 +15,7 @@ public record UserResponse(
         String bannedReason,
         Instant bannedUntil,
         Instant deletedAt,
+        boolean emailVerified,
+        Instant emailVerifiedAt,
         Instant createdAt) {
 }
