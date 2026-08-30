@@ -35,6 +35,8 @@ public interface UserService {
 
     UserResponse restoreUser(UUID id);
 
+    UserResponse verifyEmail(UUID id, String otp);
+
     void deleteUser(UUID id);
 
     void purgeUser(UUID id);

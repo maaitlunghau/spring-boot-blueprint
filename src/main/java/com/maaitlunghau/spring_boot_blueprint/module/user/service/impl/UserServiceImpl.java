@@ -24,7 +24,9 @@ import com.maaitlunghau.spring_boot_blueprint.common.storage.StorageService;
 import com.maaitlunghau.spring_boot_blueprint.exception.BadRequestException;
 import com.maaitlunghau.spring_boot_blueprint.exception.DuplicateResourceException;
 import com.maaitlunghau.spring_boot_blueprint.exception.EmailPendingPurgeException;
+import com.maaitlunghau.spring_boot_blueprint.exception.InvalidOtpException;
 import com.maaitlunghau.spring_boot_blueprint.exception.ResourceNotFoundException;
+import com.maaitlunghau.spring_boot_blueprint.exception.UserAlreadyVerifiedException;
 import com.maaitlunghau.spring_boot_blueprint.exception.UserAlreadyBannedException;
 import com.maaitlunghau.spring_boot_blueprint.exception.UserNotBannedException;
 import com.maaitlunghau.spring_boot_blueprint.exception.UserNotDeletedException;
@@ -224,6 +226,33 @@ public class UserServiceImpl implements UserService {
         );
 
         return response;
+    }
+
+    @Override
+    @Transactional(noRollbackFor = InvalidOtpException.class)
+    public UserResponse verifyEmail(UUID id, String otp) {
+        User user = userRepository.findByIdAndDeletedAtIsNull(id)
+            .orElseThrow(() -> new ResourceNotFoundException("User", id.toString()));
+
+        if (user.isEmailVerified()) {
+            throw new UserAlreadyVerifiedException(id.toString());
+        }
+
+        EmailVerificationToken token = emailVerificationTokenRepository.findTopByUserIdOrderByCreatedAtDesc(id)
+            .filter(t -> !t.isUsed() && !t.isExpired() && !t.isAttemptsExceeded())
+            .orElseThrow(InvalidOtpException::new);
+
+        if (!passwordEncoder.matches(otp, token.getOtpHash())) {
+            token.incrementAttempt();
+            emailVerificationTokenRepository.save(token);
+            throw new InvalidOtpException();
+        }
+
+        token.markUsed();
+        emailVerificationTokenRepository.save(token);
+
+        user.verifyEmail();
+        return userMapper.toResponse(userRepository.save(user));
     }
 
     @Override
