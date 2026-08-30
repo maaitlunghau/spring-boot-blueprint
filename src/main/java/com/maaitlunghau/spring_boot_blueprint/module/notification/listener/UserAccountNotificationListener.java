@@ -6,14 +6,16 @@ import org.springframework.stereotype.Component;
 import com.maaitlunghau.spring_boot_blueprint.common.notification.EmailService;
 import com.maaitlunghau.spring_boot_blueprint.config.RabbitMQConfig;
 import com.maaitlunghau.spring_boot_blueprint.module.user.event.UserBannedEvent;
+import com.maaitlunghau.spring_boot_blueprint.module.user.event.UserDeletedEvent;
+import com.maaitlunghau.spring_boot_blueprint.module.user.event.UserRestoredEvent;
 import com.maaitlunghau.spring_boot_blueprint.module.user.event.UserUnbannedEvent;
 
 @Component
-public class UserBanNotificationListener {
+public class UserAccountNotificationListener {
 
     private final EmailService emailService;
 
-    public UserBanNotificationListener(EmailService emailService) {
+    public UserAccountNotificationListener(EmailService emailService) {
         this.emailService = emailService;
     }
 
@@ -35,6 +37,26 @@ public class UserBanNotificationListener {
             event.email(),
             "Your account has been unbanned",
             "Hi %s,\n\nYour account has been unbanned and you can now sign in again."
+                .formatted(event.fullName())
+        );
+    }
+
+    @RabbitListener(queues = RabbitMQConfig.USER_DELETE_QUEUE)
+    public void onUserDeleted(UserDeletedEvent event) {
+        emailService.send(
+            event.email(),
+            "Your account has been deleted",
+            "Hi %s,\n\nYour account has been deleted. It will be permanently removed in 30 days unless restored by an administrator."
+                .formatted(event.fullName())
+        );
+    }
+
+    @RabbitListener(queues = RabbitMQConfig.USER_RESTORE_QUEUE)
+    public void onUserRestored(UserRestoredEvent event) {
+        emailService.send(
+            event.email(),
+            "Your account has been restored",
+            "Hi %s,\n\nYour account has been restored and you can sign in again."
                 .formatted(event.fullName())
         );
     }

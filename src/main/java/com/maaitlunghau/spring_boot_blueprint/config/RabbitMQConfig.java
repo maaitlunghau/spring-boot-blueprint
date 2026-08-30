@@ -22,9 +22,13 @@ public class RabbitMQConfig {
 
     public static final String USER_BAN_QUEUE = "user.ban.notification.queue";
     public static final String USER_UNBAN_QUEUE = "user.unban.notification.queue";
+    public static final String USER_DELETE_QUEUE = "user.deleted.notification.queue";
+    public static final String USER_RESTORE_QUEUE = "user.restored.notification.queue";
 
     public static final String USER_BANNED_ROUTING_KEY = "user.banned";
     public static final String USER_UNBANNED_ROUTING_KEY = "user.unbanned";
+    public static final String USER_DELETED_ROUTING_KEY = "user.deleted";
+    public static final String USER_RESTORED_ROUTING_KEY = "user.restored";
 
     @Bean
     public TopicExchange notificationExchange() {
@@ -68,6 +72,30 @@ public class RabbitMQConfig {
     @Bean
     public Binding userUnbanBinding() {
         return BindingBuilder.bind(userUnbanNotificationQueue()).to(notificationExchange()).with(USER_UNBANNED_ROUTING_KEY);
+    }
+
+    @Bean
+    public Queue userDeleteNotificationQueue() {
+        return QueueBuilder.durable(USER_DELETE_QUEUE)
+            .withArgument("x-dead-letter-exchange", NOTIFICATION_DLX)
+            .build();
+    }
+
+    @Bean
+    public Binding userDeleteBinding() {
+        return BindingBuilder.bind(userDeleteNotificationQueue()).to(notificationExchange()).with(USER_DELETED_ROUTING_KEY);
+    }
+
+    @Bean
+    public Queue userRestoreNotificationQueue() {
+        return QueueBuilder.durable(USER_RESTORE_QUEUE)
+            .withArgument("x-dead-letter-exchange", NOTIFICATION_DLX)
+            .build();
+    }
+
+    @Bean
+    public Binding userRestoreBinding() {
+        return BindingBuilder.bind(userRestoreNotificationQueue()).to(notificationExchange()).with(USER_RESTORED_ROUTING_KEY);
     }
 
     @Bean

@@ -31,6 +31,7 @@ import com.maaitlunghau.spring_boot_blueprint.module.user.dto.response.UserRespo
 import com.maaitlunghau.spring_boot_blueprint.module.user.entity.Role;
 import com.maaitlunghau.spring_boot_blueprint.module.user.entity.User;
 import com.maaitlunghau.spring_boot_blueprint.module.user.event.UserBannedEvent;
+import com.maaitlunghau.spring_boot_blueprint.module.user.event.UserDeletedEvent;
 import com.maaitlunghau.spring_boot_blueprint.module.user.event.UserUnbannedEvent;
 import com.maaitlunghau.spring_boot_blueprint.module.user.mapper.UserMapper;
 import com.maaitlunghau.spring_boot_blueprint.module.user.repository.UserRepository;
@@ -218,6 +219,13 @@ public class UserServiceImpl implements UserService {
 
         user.softDelete();
         userRepository.save(user);
+
+        outboxEventWriter.write(
+            USER_AGGREGATE_TYPE,
+            id,
+            RabbitMQConfig.USER_DELETED_ROUTING_KEY,
+            new UserDeletedEvent(id, user.getEmail(), user.getFullName())
+        );
     }
 
     private void validateAvatarFile(MultipartFile file) {
