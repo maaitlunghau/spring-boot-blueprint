@@ -77,7 +77,7 @@ public class UserServiceImpl implements UserService {
     @Override
     public PageResponse<UserResponse> getAllUsers(String keyword, Role role, Pageable pageable) {
         Page<User> page = userRepository.findAll(
-            UserSpecifications.keywordIn(keyword).and(UserSpecifications.hasRole(role)), pageable
+            UserSpecifications.keywordIn(keyword).and(UserSpecifications.hasRole(role)).and(UserSpecifications.notDeleted()), pageable
         );
         
         return PageResponse.from(page.map(userMapper::toResponse));
@@ -85,7 +85,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public UserResponse getUserById(UUID id) {
-        return userRepository.findById(id)
+        return userRepository.findByIdAndDeletedAtIsNull(id)
             .map(userMapper::toResponse)
             .orElseThrow(() -> new ResourceNotFoundException("User", id.toString()));
     }
@@ -107,7 +107,7 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     public UserResponse updateProfile(UUID id, UpdateProfileRequest request) {
-        User user = userRepository.findById(id)
+        User user = userRepository.findByIdAndDeletedAtIsNull(id)
             .orElseThrow(() -> new ResourceNotFoundException("User", id.toString()));
 
         user.updateProfile(request.fullName());
@@ -118,7 +118,7 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     public UserResponse updateRole(UUID id, UpdateRoleRequest request) {
-        User user = userRepository.findById(id)
+        User user = userRepository.findByIdAndDeletedAtIsNull(id)
             .orElseThrow(() -> new ResourceNotFoundException("User", id.toString()));
 
         user.changeRole(Role.valueOf(request.role()));
@@ -129,7 +129,7 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     public UserResponse banUser(UUID id, BanUserRequest request) {
-        User user = userRepository.findById(id)
+        User user = userRepository.findByIdAndDeletedAtIsNull(id)
             .orElseThrow(() -> new ResourceNotFoundException("User", id.toString()));
 
         if (user.getRole() == Role.ADMIN) {
@@ -157,7 +157,7 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     public UserResponse unbanUser(UUID id) {
-        User user = userRepository.findById(id)
+        User user = userRepository.findByIdAndDeletedAtIsNull(id)
             .orElseThrow(() -> new ResourceNotFoundException("User", id.toString()));
 
         if (user.isEnabled()) {
@@ -182,13 +182,13 @@ public class UserServiceImpl implements UserService {
     public UserResponse updateAvatar(UUID id, MultipartFile file) {
         validateAvatarFile(file);
 
-        if (!userRepository.existsById(id)) {
+        if (!userRepository.existsByIdAndDeletedAtIsNull(id)) {
             throw new ResourceNotFoundException("User", id.toString());
         }
 
         StorageResult result = storageService.upload(file, AVATAR_FOLDER, AVATAR_TRANSFORM);
 
-        User user = userRepository.findById(id)
+        User user = userRepository.findByIdAndDeletedAtIsNull(id)
             .orElseThrow(() -> new ResourceNotFoundException("User", id.toString()));
 
         String oldPublicId = user.getImagePublicId();
@@ -207,20 +207,17 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    @Transactional
     public void deleteUser(UUID id) {
-        User user = userRepository.findById(id)
+        User user = userRepository.findByIdAndDeletedAtIsNull(id)
             .orElseThrow(() -> new ResourceNotFoundException("User", id.toString()));
 
-        userRepository.deleteById(id);
-
-        if (user.getImagePublicId() != null) {
-            try {
-                storageService.delete(user.getImagePublicId());
-            } catch (Exception e) {
-                log.warn("Failed to delete avatar '{}' for deleted user {}", user.getImagePublicId(), id, e);
-            }
+        if (user.getRole() == Role.ADMIN) {
+            throw new BadRequestException("Cannot delete a user with ADMIN role");
         }
+
+        user.softDelete();
+        userRepository.save(user);
     }
 
     private void validateAvatarFile(MultipartFile file) {
