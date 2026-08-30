@@ -17,4 +17,12 @@ public interface UserRepository extends JpaRepository<User, UUID>, JpaSpecificat
     boolean existsByEmail(String email);
 
     List<User> findByEnabledFalseAndBannedUntilBefore(Instant instant);
+
+    Optional<User> findByIdAndDeletedAtIsNull(UUID id);
+
+    Optional<User> findByIdAndDeletedAtIsNotNull(UUID id);
+
+    boolean existsByIdAndDeletedAtIsNull(UUID id);
+
+    List<User> findByDeletedAtBefore(Instant cutoff);
 }

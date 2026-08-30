@@ -60,6 +60,27 @@ public class RateLimitConfig {
             3,
             Duration.ofMinutes(1),
             2
+        ),
+        new RateLimitRule(
+            "/api/users/*",
+            "DELETE",
+            10,
+            Duration.ofMinutes(1),
+            1
+        ),
+        new RateLimitRule(
+            "/api/users/*/restore",
+            "PATCH",
+            10,
+            Duration.ofMinutes(1),
+            1
+        ),
+        new RateLimitRule(
+            "/api/users/*/purge",
+            "DELETE",
+            10,
+            Duration.ofMinutes(1),
+            1
         )
     );
 

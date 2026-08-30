@@ -29,4 +29,12 @@ public class UserSpecifications {
             return cb.equal(root.get("role"), role);
         };
     }
+
+    public static Specification<User> notDeleted() {
+        return (root, query, cb) -> cb.isNull(root.get("deletedAt"));
+    }
+
+    public static Specification<User> onlyDeleted() {
+        return (root, query, cb) -> cb.isNotNull(root.get("deletedAt"));
+    }
 }

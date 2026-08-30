@@ -20,9 +20,11 @@ import com.maaitlunghau.spring_boot_blueprint.common.storage.StorageResult;
 import com.maaitlunghau.spring_boot_blueprint.common.storage.StorageService;
 import com.maaitlunghau.spring_boot_blueprint.exception.BadRequestException;
 import com.maaitlunghau.spring_boot_blueprint.exception.DuplicateResourceException;
+import com.maaitlunghau.spring_boot_blueprint.exception.EmailPendingPurgeException;
 import com.maaitlunghau.spring_boot_blueprint.exception.ResourceNotFoundException;
 import com.maaitlunghau.spring_boot_blueprint.exception.UserAlreadyBannedException;
 import com.maaitlunghau.spring_boot_blueprint.exception.UserNotBannedException;
+import com.maaitlunghau.spring_boot_blueprint.exception.UserNotDeletedException;
 import com.maaitlunghau.spring_boot_blueprint.module.user.dto.request.BanUserRequest;
 import com.maaitlunghau.spring_boot_blueprint.module.user.dto.request.CreateUserRequest;
 import com.maaitlunghau.spring_boot_blueprint.module.user.dto.request.UpdateProfileRequest;
@@ -31,6 +33,8 @@ import com.maaitlunghau.spring_boot_blueprint.module.user.dto.response.UserRespo
 import com.maaitlunghau.spring_boot_blueprint.module.user.entity.Role;
 import com.maaitlunghau.spring_boot_blueprint.module.user.entity.User;
 import com.maaitlunghau.spring_boot_blueprint.module.user.event.UserBannedEvent;
+import com.maaitlunghau.spring_boot_blueprint.module.user.event.UserDeletedEvent;
+import com.maaitlunghau.spring_boot_blueprint.module.user.event.UserRestoredEvent;
 import com.maaitlunghau.spring_boot_blueprint.module.user.event.UserUnbannedEvent;
 import com.maaitlunghau.spring_boot_blueprint.module.user.mapper.UserMapper;
 import com.maaitlunghau.spring_boot_blueprint.module.user.repository.UserRepository;
@@ -77,15 +81,21 @@ public class UserServiceImpl implements UserService {
     @Override
     public PageResponse<UserResponse> getAllUsers(String keyword, Role role, Pageable pageable) {
         Page<User> page = userRepository.findAll(
-            UserSpecifications.keywordIn(keyword).and(UserSpecifications.hasRole(role)), pageable
+            UserSpecifications.keywordIn(keyword).and(UserSpecifications.hasRole(role)).and(UserSpecifications.notDeleted()), pageable
         );
         
         return PageResponse.from(page.map(userMapper::toResponse));
     }
 
     @Override
+    public PageResponse<UserResponse> getDeletedUsers(Pageable pageable) {
+        Page<User> page = userRepository.findAll(UserSpecifications.onlyDeleted(), pageable);
+        return PageResponse.from(page.map(userMapper::toResponse));
+    }
+
+    @Override
     public UserResponse getUserById(UUID id) {
-        return userRepository.findById(id)
+        return userRepository.findByIdAndDeletedAtIsNull(id)
             .map(userMapper::toResponse)
             .orElseThrow(() -> new ResourceNotFoundException("User", id.toString()));
     }
@@ -93,9 +103,12 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     public UserResponse createUser(CreateUserRequest request) {
-        if (userRepository.existsByEmail(request.email())) {
+        userRepository.findByEmail(request.email()).ifPresent(existing -> {
+            if (existing.getDeletedAt() != null) {
+                throw new EmailPendingPurgeException();
+            }
             throw new DuplicateResourceException("User", request.email());
-        }
+        });
 
         User user = userMapper.toEntity(request);
         user.changePassword(passwordEncoder.encode(request.password()));
@@ -107,7 +120,7 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     public UserResponse updateProfile(UUID id, UpdateProfileRequest request) {
-        User user = userRepository.findById(id)
+        User user = userRepository.findByIdAndDeletedAtIsNull(id)
             .orElseThrow(() -> new ResourceNotFoundException("User", id.toString()));
 
         user.updateProfile(request.fullName());
@@ -118,7 +131,7 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     public UserResponse updateRole(UUID id, UpdateRoleRequest request) {
-        User user = userRepository.findById(id)
+        User user = userRepository.findByIdAndDeletedAtIsNull(id)
             .orElseThrow(() -> new ResourceNotFoundException("User", id.toString()));
 
         user.changeRole(Role.valueOf(request.role()));
@@ -129,7 +142,7 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     public UserResponse banUser(UUID id, BanUserRequest request) {
-        User user = userRepository.findById(id)
+        User user = userRepository.findByIdAndDeletedAtIsNull(id)
             .orElseThrow(() -> new ResourceNotFoundException("User", id.toString()));
 
         if (user.getRole() == Role.ADMIN) {
@@ -157,7 +170,7 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     public UserResponse unbanUser(UUID id) {
-        User user = userRepository.findById(id)
+        User user = userRepository.findByIdAndDeletedAtIsNull(id)
             .orElseThrow(() -> new ResourceNotFoundException("User", id.toString()));
 
         if (user.isEnabled()) {
@@ -178,17 +191,36 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    @Transactional
+    public UserResponse restoreUser(UUID id) {
+        User user = userRepository.findByIdAndDeletedAtIsNotNull(id)
+            .orElseThrow(() -> new UserNotDeletedException(id.toString()));
+
+        user.restore();
+        UserResponse response = userMapper.toResponse(userRepository.save(user));
+
+        outboxEventWriter.write(
+            USER_AGGREGATE_TYPE,
+            id,
+            RabbitMQConfig.USER_RESTORED_ROUTING_KEY,
+            new UserRestoredEvent(id, user.getEmail(), user.getFullName())
+        );
+
+        return response;
+    }
+
+    @Override
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public UserResponse updateAvatar(UUID id, MultipartFile file) {
         validateAvatarFile(file);
 
-        if (!userRepository.existsById(id)) {
+        if (!userRepository.existsByIdAndDeletedAtIsNull(id)) {
             throw new ResourceNotFoundException("User", id.toString());
         }
 
         StorageResult result = storageService.upload(file, AVATAR_FOLDER, AVATAR_TRANSFORM);
 
-        User user = userRepository.findById(id)
+        User user = userRepository.findByIdAndDeletedAtIsNull(id)
             .orElseThrow(() -> new ResourceNotFoundException("User", id.toString()));
 
         String oldPublicId = user.getImagePublicId();
@@ -207,10 +239,31 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    @Transactional
     public void deleteUser(UUID id) {
-        User user = userRepository.findById(id)
+        User user = userRepository.findByIdAndDeletedAtIsNull(id)
             .orElseThrow(() -> new ResourceNotFoundException("User", id.toString()));
+
+        if (user.getRole() == Role.ADMIN) {
+            throw new BadRequestException("Cannot delete a user with ADMIN role");
+        }
+
+        user.softDelete();
+        userRepository.save(user);
+
+        outboxEventWriter.write(
+            USER_AGGREGATE_TYPE,
+            id,
+            RabbitMQConfig.USER_DELETED_ROUTING_KEY,
+            new UserDeletedEvent(id, user.getEmail(), user.getFullName())
+        );
+    }
+
+    @Override
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    public void purgeUser(UUID id) {
+        User user = userRepository.findByIdAndDeletedAtIsNotNull(id)
+            .orElseThrow(() -> new UserNotDeletedException(id.toString()));
 
         userRepository.deleteById(id);
 
@@ -218,7 +271,7 @@ public class UserServiceImpl implements UserService {
             try {
                 storageService.delete(user.getImagePublicId());
             } catch (Exception e) {
-                log.warn("Failed to delete avatar '{}' for deleted user {}", user.getImagePublicId(), id, e);
+                log.warn("Failed to delete avatar '{}' for purged user {}", user.getImagePublicId(), id, e);
             }
         }
     }

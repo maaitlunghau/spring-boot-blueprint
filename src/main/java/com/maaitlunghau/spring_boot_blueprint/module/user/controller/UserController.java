@@ -49,6 +49,13 @@ public class UserController {
         );
     }
 
+    @GetMapping("/deleted")
+    public ResponseEntity<ApiResponse<PageResponse<UserResponse>>> getDeletedUsers(Pageable pageable) {
+        return ResponseEntity.ok(
+            ApiResponse.ok(userService.getDeletedUsers(pageable))
+        );
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<UserResponse>> getUserById(@PathVariable UUID id) {
         return ResponseEntity.ok(
@@ -121,6 +128,17 @@ public class UserController {
         );
     }
 
+    @PatchMapping("/{id}/restore")
+    public ResponseEntity<ApiResponse<UserResponse>> restoreUser(@PathVariable UUID id) {
+        return ResponseEntity.ok(
+            ApiResponse.of(
+                HttpStatus.OK.value(),
+                "User restored successfully",
+                userService.restoreUser(id)
+            )
+        );
+    }
+
     @PostMapping("/{id}/avatar")
     public ResponseEntity<ApiResponse<UserResponse>> updateAvatar(
         @PathVariable UUID id,
@@ -140,9 +158,17 @@ public class UserController {
         userService.deleteUser(id);
         return ResponseEntity.ok(
             ApiResponse.message(
-                HttpStatus.OK.value(), 
+                HttpStatus.OK.value(),
                 "User deleted successfully"
             )
+        );
+    }
+
+    @DeleteMapping("/{id}/purge")
+    public ResponseEntity<ApiResponse<Void>> purgeUser(@PathVariable UUID id) {
+        userService.purgeUser(id);
+        return ResponseEntity.ok(
+            ApiResponse.message(HttpStatus.OK.value(), "User permanently deleted")
         );
     }
 }

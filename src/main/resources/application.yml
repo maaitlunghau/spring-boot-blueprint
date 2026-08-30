@@ -63,3 +63,7 @@ app:
 
   avatar:
     default-url: ${DEFAULT_AVATAR_URL:https://res.cloudinary.com/demo/image/upload/v1/samples/people/default-avatar.png}
+
+  user:
+    soft-delete:
+      retention-days: 30
