@@ -10,6 +10,7 @@ import java.util.UUID;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
@@ -36,6 +37,7 @@ import com.maaitlunghau.spring_boot_blueprint.module.user.dto.request.BanUserReq
 import com.maaitlunghau.spring_boot_blueprint.module.user.dto.request.CreateUserRequest;
 import com.maaitlunghau.spring_boot_blueprint.module.user.dto.request.UpdateProfileRequest;
 import com.maaitlunghau.spring_boot_blueprint.module.user.dto.request.UpdateRoleRequest;
+import com.maaitlunghau.spring_boot_blueprint.module.user.dto.request.UserFilterRequest;
 import com.maaitlunghau.spring_boot_blueprint.module.user.dto.response.UserResponse;
 import com.maaitlunghau.spring_boot_blueprint.module.user.entity.EmailVerificationToken;
 import com.maaitlunghau.spring_boot_blueprint.module.user.entity.Role;
@@ -100,18 +102,31 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public PageResponse<UserResponse> getAllUsers(String keyword, Role role, Pageable pageable) {
+    public PageResponse<UserResponse> getAllUsers(UserFilterRequest filter, Pageable pageable) {
         Page<User> page = userRepository.findAll(
-            UserSpecifications.keywordIn(keyword).and(UserSpecifications.hasRole(role)).and(UserSpecifications.notDeleted()), pageable
+            buildFilterSpec(filter).and(UserSpecifications.notDeleted()), pageable
         );
-        
+
         return PageResponse.from(page.map(userMapper::toResponse));
     }
 
     @Override
-    public PageResponse<UserResponse> getDeletedUsers(Pageable pageable) {
-        Page<User> page = userRepository.findAll(UserSpecifications.onlyDeleted(), pageable);
+    public PageResponse<UserResponse> getDeletedUsers(UserFilterRequest filter, Pageable pageable) {
+        Page<User> page = userRepository.findAll(
+            buildFilterSpec(filter).and(UserSpecifications.onlyDeleted()), pageable
+        );
+
         return PageResponse.from(page.map(userMapper::toResponse));
+    }
+
+    private Specification<User> buildFilterSpec(UserFilterRequest filter) {
+        return UserSpecifications.keywordIn(filter.keyword())
+            .and(UserSpecifications.hasRole(filter.role()))
+            .and(UserSpecifications.isBanned(filter.banned()))
+            .and(UserSpecifications.isEmailVerified(filter.emailVerified()))
+            .and(UserSpecifications.instantBetween("createdAt", filter.createdFrom(), filter.createdTo()))
+            .and(UserSpecifications.instantBetween("bannedAt", filter.bannedAtFrom(), filter.bannedAtTo()))
+            .and(UserSpecifications.instantBetween("bannedUntil", filter.bannedUntilFrom(), filter.bannedUntilTo()));
     }
 
     @Override
@@ -270,11 +285,14 @@ public class UserServiceImpl implements UserService {
             throw new UserAlreadyVerifiedException(id.toString());
         }
 
-        emailVerificationTokenRepository.findTopByUserIdOrderByCreatedAtDesc(id).ifPresent(latest -> {
-            Instant cooldownEnds = latest.getCreatedAt().plusSeconds(resendCooldownSeconds);
-            if (Instant.now().isBefore(cooldownEnds)) {
-                throw new ResendCooldownException(Duration.between(Instant.now(), cooldownEnds).getSeconds());
-            }
+        emailVerificationTokenRepository
+            .findTopByUserIdOrderByCreatedAtDesc(id)
+            .ifPresent(latest -> {
+                Instant cooldownEnds = latest.getCreatedAt().plusSeconds(resendCooldownSeconds);
+
+                if (Instant.now().isBefore(cooldownEnds)) {
+                    throw new ResendCooldownException(Duration.between(Instant.now(), cooldownEnds).getSeconds());
+                }
         });
 
         issueVerificationOtp(user);
@@ -373,9 +391,11 @@ public class UserServiceImpl implements UserService {
         if (file == null || file.isEmpty()) {
             throw new BadRequestException("File is required");
         }
+
         if (!ALLOWED_AVATAR_TYPES.contains(file.getContentType())) {
             throw new BadRequestException("Only JPG, PNG, WEBP images are allowed");
         }
+        
         if (file.getSize() > MAX_AVATAR_SIZE) {
             throw new BadRequestException("File size must not exceed 5MB");
         }

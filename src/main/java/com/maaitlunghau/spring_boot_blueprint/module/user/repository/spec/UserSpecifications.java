@@ -1,5 +1,7 @@
 package com.maaitlunghau.spring_boot_blueprint.module.user.repository.spec;
 
+import java.time.Instant;
+
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.util.StringUtils;
 
@@ -36,5 +38,28 @@ public class UserSpecifications {
 
     public static Specification<User> onlyDeleted() {
         return (root, query, cb) -> cb.isNotNull(root.get("deletedAt"));
+    }
+
+    public static Specification<User> isBanned(Boolean banned) {
+        return (root, query, cb) -> {
+            if (banned == null) return cb.conjunction();
+            return cb.equal(root.get("enabled"), !banned);
+        };
+    }
+
+    public static Specification<User> isEmailVerified(Boolean emailVerified) {
+        return (root, query, cb) -> {
+            if (emailVerified == null) return cb.conjunction();
+            return cb.equal(root.get("emailVerified"), emailVerified);
+        };
+    }
+
+    public static Specification<User> instantBetween(String field, Instant from, Instant to) {
+        return (root, query, cb) -> {
+            if (from == null && to == null) return cb.conjunction();
+            if (from != null && to != null) return cb.between(root.get(field), from, to);
+            if (from != null) return cb.greaterThanOrEqualTo(root.get(field), from);
+            return cb.lessThanOrEqualTo(root.get(field), to);
+        };
     }
 }

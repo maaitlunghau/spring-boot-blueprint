@@ -22,9 +22,9 @@ import com.maaitlunghau.spring_boot_blueprint.module.user.dto.request.BanUserReq
 import com.maaitlunghau.spring_boot_blueprint.module.user.dto.request.CreateUserRequest;
 import com.maaitlunghau.spring_boot_blueprint.module.user.dto.request.UpdateProfileRequest;
 import com.maaitlunghau.spring_boot_blueprint.module.user.dto.request.UpdateRoleRequest;
+import com.maaitlunghau.spring_boot_blueprint.module.user.dto.request.UserFilterRequest;
 import com.maaitlunghau.spring_boot_blueprint.module.user.dto.request.VerifyEmailRequest;
 import com.maaitlunghau.spring_boot_blueprint.module.user.dto.response.UserResponse;
-import com.maaitlunghau.spring_boot_blueprint.module.user.entity.Role;
 import com.maaitlunghau.spring_boot_blueprint.module.user.service.UserService;
 
 import jakarta.validation.Valid;
@@ -40,20 +40,16 @@ public class UserController {
     }
 
     @GetMapping()
-    public ResponseEntity<ApiResponse<PageResponse<UserResponse>>> search(
-        @RequestParam(required = false) String keyword,
-        @RequestParam(required = false) Role role,
-        Pageable pageable
-    ) {
+    public ResponseEntity<ApiResponse<PageResponse<UserResponse>>> search(UserFilterRequest filter, Pageable pageable) {
         return ResponseEntity.ok(
-            ApiResponse.ok(userService.getAllUsers(keyword, role, pageable))
+            ApiResponse.ok(userService.getAllUsers(filter, pageable))
         );
     }
 
     @GetMapping("/deleted")
-    public ResponseEntity<ApiResponse<PageResponse<UserResponse>>> getDeletedUsers(Pageable pageable) {
+    public ResponseEntity<ApiResponse<PageResponse<UserResponse>>> getDeletedUsers(UserFilterRequest filter, Pageable pageable) {
         return ResponseEntity.ok(
-            ApiResponse.ok(userService.getDeletedUsers(pageable))
+            ApiResponse.ok(userService.getDeletedUsers(filter, pageable))
         );
     }
 
