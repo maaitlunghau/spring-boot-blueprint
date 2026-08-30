@@ -14,5 +14,6 @@ public record UserResponse(
         String imageUrl,
         String bannedReason,
         Instant bannedUntil,
+        Instant deletedAt,
         Instant createdAt) {
 }

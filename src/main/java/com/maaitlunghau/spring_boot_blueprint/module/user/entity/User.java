@@ -53,6 +53,9 @@ public class User extends BaseEntity {
     @Column(name = "banned_until", nullable = true)
     private Instant bannedUntil;
 
+    @Column(name = "deleted_at", nullable = true)
+    private Instant deletedAt;
+
     protected User() {
     }
 
@@ -104,6 +107,14 @@ public class User extends BaseEntity {
         this.bannedReason = null;
         this.bannedAt = null;
         this.bannedUntil = null;
+    }
+
+    public void softDelete() {
+        this.deletedAt = Instant.now();
+    }
+
+    public void restore() {
+        this.deletedAt = null;
     }
 
     private static String normalizeEmail(String email) {
