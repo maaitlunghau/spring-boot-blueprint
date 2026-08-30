@@ -10,14 +10,14 @@ import com.maaitlunghau.spring_boot_blueprint.module.user.dto.request.BanUserReq
 import com.maaitlunghau.spring_boot_blueprint.module.user.dto.request.CreateUserRequest;
 import com.maaitlunghau.spring_boot_blueprint.module.user.dto.request.UpdateProfileRequest;
 import com.maaitlunghau.spring_boot_blueprint.module.user.dto.request.UpdateRoleRequest;
+import com.maaitlunghau.spring_boot_blueprint.module.user.dto.request.UserFilterRequest;
 import com.maaitlunghau.spring_boot_blueprint.module.user.dto.response.UserResponse;
-import com.maaitlunghau.spring_boot_blueprint.module.user.entity.Role;
 
 public interface UserService {
 
-    PageResponse<UserResponse> getAllUsers(String keyword, Role role, Pageable pageable);
+    PageResponse<UserResponse> getAllUsers(UserFilterRequest filter, Pageable pageable);
 
-    PageResponse<UserResponse> getDeletedUsers(Pageable pageable);
+    PageResponse<UserResponse> getDeletedUsers(UserFilterRequest filter, Pageable pageable);
 
     UserResponse getUserById(UUID id);
 
