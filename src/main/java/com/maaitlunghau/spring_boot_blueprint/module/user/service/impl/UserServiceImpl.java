@@ -20,6 +20,7 @@ import com.maaitlunghau.spring_boot_blueprint.common.storage.StorageResult;
 import com.maaitlunghau.spring_boot_blueprint.common.storage.StorageService;
 import com.maaitlunghau.spring_boot_blueprint.exception.BadRequestException;
 import com.maaitlunghau.spring_boot_blueprint.exception.DuplicateResourceException;
+import com.maaitlunghau.spring_boot_blueprint.exception.EmailPendingPurgeException;
 import com.maaitlunghau.spring_boot_blueprint.exception.ResourceNotFoundException;
 import com.maaitlunghau.spring_boot_blueprint.exception.UserAlreadyBannedException;
 import com.maaitlunghau.spring_boot_blueprint.exception.UserNotBannedException;
@@ -96,9 +97,12 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     public UserResponse createUser(CreateUserRequest request) {
-        if (userRepository.existsByEmail(request.email())) {
+        userRepository.findByEmail(request.email()).ifPresent(existing -> {
+            if (existing.getDeletedAt() != null) {
+                throw new EmailPendingPurgeException();
+            }
             throw new DuplicateResourceException("User", request.email());
-        }
+        });
 
         User user = userMapper.toEntity(request);
         user.changePassword(passwordEncoder.encode(request.password()));
